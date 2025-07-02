@@ -1,0 +1,3832 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot Gerador de Horários</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- jsPDF library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- jsPDF-AutoTable plugin -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .chat-bubble-bot {
+            background-color: #E0E7FF; /* Indigo 100 */
+            color: #3730A3; /* Indigo 800 */
+            align-self: flex-start;
+            border-radius: 20px 20px 20px 5px;
+        }
+        .question-highlight-bot { /* Nova classe para destacar perguntas */
+            background-color: #D1FAE5; /* Green 100 */
+            color: #065F46; /* Green 800 */
+            font-weight: 500;
+        }
+        .chat-bubble-user {
+            background-color: #3B82F6; /* Blue 500 */
+            color: white;
+            align-self: flex-end;
+            border-radius: 20px 20px 5px 20px;
+        }
+        .chat-input-container {
+            position: sticky;
+            bottom: 0;
+            background-color: white;
+            padding-bottom: env(safe-area-inset-bottom); /* For iPhone X notch */
+        }
+         /* Estilo para o scrollbar */
+        #chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+        #chat-messages::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        #chat-messages::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        #chat-messages::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        .option-button {
+             background-color: #E5E7EB; /* gray-200 */
+             color: #374151; /* gray-700 */
+             font-weight: 500; /* medium */
+             padding-top: 0.5rem; padding-bottom: 0.5rem;
+             padding-left: 1rem; padding-right: 1rem;
+             border-radius: 0.5rem; /* rounded-lg */
+             font-size: 0.875rem; /* text-sm */
+             margin: 0.25rem; /* gap-1 equivalent for individual items */
+        }
+        .option-button:hover {
+            background-color: #D1D5DB; /* gray-300 */
+        }
+        
+        .option-button-selected {
+            background-color: #4F46E5; /* indigo-600 */
+            color: white;
+        }
+        /* Estilos para a tabela de horários e turmas */
+        .data-table, .availability-grid, .parameters-table, .fixed-schedule-grid { 
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            font-size: 0.8rem;
+        }
+        .data-table th, .data-table td,
+        .availability-grid th, .availability-grid td,
+        .parameters-table th, .parameters-table td,
+        .fixed-schedule-grid th, .fixed-schedule-grid td {
+            border: 1px solid #D1D5DB; 
+            padding: 6px;
+            text-align: center;
+            min-width: 60px; /* Ajustado para caber mais colunas */
+        }
+        .parameters-table td:first-child {
+            text-align: left;
+        }
+        .data-table th, .availability-grid th, .parameters-table th, .fixed-schedule-grid th {
+            background-color: #F3F4F6; 
+        }
+        .data-table td div, .availability-grid td div, .parameters-table td div, .fixed-schedule-grid td div { 
+            font-size: 0.75rem;
+            line-height: 1.2;
+        }
+        .interval-row td {
+            background-color: #FEF3C7; /* amber-100 */
+            font-style: italic;
+            color: #78350F; /* amber-800 */
+        }
+        .availability-grid td, .fixed-schedule-grid td {
+            cursor: pointer;
+            height: 40px; /* Altura fixa para células da grade */
+        }
+        .status-D { background-color: #D1FAE5; color: #065F46; } /* Green */
+        .status-P { background-color: #FEF3C7; color: #92400E; } /* Amber */
+        .status-ND { background-color: #FEE2E2; color: #991B1B; } /* Red */
+        .fixed-class-cell { background-color: #BFDBFE; } /* blue-200 */
+
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.6);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto; /* 10% from the top and centered */
+            padding: 25px;
+            border: 1px solid #888;
+            width: 90%; /* Could be more or less, depending on screen size */
+            max-width: 500px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        #horario-modal-body {
+            max-height: 75vh;
+            overflow-y: auto;
+        }
+        
+        #file-import-container {
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px dashed #ccc;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+
+
+        /* ESTILOS DE BOTÕES DE AÇÃO DESTACADOS */
+        .action-button {
+            font-weight: 600; /* semibold */
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: all 0.2s ease-in-out;
+        }
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+.button-overloaded {
+    background-color: #FEE2E2; /* Red-100 */
+    color: #B91C1C; /* Red-700 */
+    border: 1px solid #F87171; /* Red-400 */
+}
+        .button-highlight-import {
+            background-color: #3B82F6; /* Blue 500 */
+            color: white;
+        }
+        .button-highlight-import:hover { background-color: #2563EB; }
+
+
+        .button-highlight-conclude {
+            background-color: #10B981; /* Green 500 */
+            color: white;
+        }
+        .button-highlight-conclude:hover { background-color: #059669; }
+
+
+         .button-highlight-action { 
+            background-color: #F59E0B; /* Amber 500 */
+            color: white;
+        }
+        .button-highlight-action:hover { background-color: #D97706; }
+
+
+        .button-correct { 
+            background-color: #EF4444; /* Red 500 */
+            color: white;
+        }
+        .button-correct:hover { background-color: #DC2626; }
+
+
+         .button-save {
+            background-color: #6366F1; /* Indigo 500 */
+            color: white;
+        }
+        .button-save:hover { background-color: #4F46E5; }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-4">
+    <div class="w-full max-w-2xl bg-white shadow-xl rounded-lg flex flex-col h-[90vh]">
+        <header class="bg-indigo-600 text-white p-4 rounded-t-lg flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 mr-3">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-3.861 8.25-8.625 8.25S3.75 16.556 3.75 12 .375 3.75.375 3.75h16.5c.375 0 .375.375.375.375V12Z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a.75.75 0 0 0 .75.75h.008a.75.75 0 0 0 .75-.75V18a.75.75 0 0 0-.75-.75h-.008a.75.75 0 0 0-.75.75v.75Z" />
+            </svg>
+            <h1 class="text-xl font-semibold">Horário Fácil - Assistente</h1>
+        </header>
+
+
+        <div id="chat-messages" class="flex-grow p-6 space-y-4 overflow-y-auto">
+            </div>
+
+
+        <div class="chat-input-container border-t border-gray-200 p-4">
+            <div class="flex items-center space-x-3">
+                <input type="text" id="user-input" class="flex-1 border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none" placeholder="Digite sua mensagem...">
+                <button id="send-button" class="bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+                    </svg>
+                </button>
+            </div>
+             <div id="options-container" class="mt-2 flex flex-wrap gap-2">
+                </div>
+            <div id="file-import-container" class="hidden mt-3">
+                <label for="json-file-input" class="block text-sm font-medium text-gray-700 mb-1">Selecione o arquivo .json:</label>
+                <input type="file" id="json-file-input" accept=".json" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+            </div>
+             <div id="availability-grid-container" class="hidden mt-3 p-3 border rounded-lg bg-gray-50 overflow-x-auto">
+                </div>
+        </div>
+    </div>
+    
+    <div id="horarioModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-700">Horário Gerado</h3>
+                <span class="close-button" id="closeHorarioModal">&times;</span>
+            </div>
+            <div id="horario-modal-body">
+                </div>
+             <div class="flex justify-end mt-4">
+                 <button id="fecharHorarioModalButton" class="px-6 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+
+
+
+    <script>
+    // =======================================================================
+    // 1. DECLARAÇÃO DE VARIÁVEIS GLOBAIS
+    // =======================================================================
+    const chatMessages = document.getElementById('chat-messages');
+    const userInput = document.getElementById('user-input');
+    const sendButton = document.getElementById('send-button');
+    const optionsContainer = document.getElementById('options-container');
+    const fileImportContainer = document.getElementById('file-import-container');
+    const jsonFileInput = document.getElementById('json-file-input');
+    const availabilityGridContainer = document.getElementById('availability-grid-container');
+    const horarioModal = document.getElementById('horarioModal');
+    const horarioModalBody = document.getElementById('horario-modal-body');
+    const closeHorarioModalBtn = document.getElementById('closeHorarioModal');
+    const fecharHorarioModalButton = document.getElementById('fecharHorarioModalButton');
+
+
+    let conversationState = 'START';
+    let previousConversationState = 'START';
+    let userData = {};
+    let tempData = {};
+    let ocupacaoProfessores = {};
+
+
+    const diasDaSemana = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"];
+    const diasDaSemanaEng = ["monday", "tuesday", "wednesday", "thursday", "friday"];
+    const disciplinasEnsinoMedio = ["Português", "Matemática", "Física", "Química", "Biologia", "História", "Geografia", "Filosofia", "Sociologia", "Inglês", "Artes", "Educação Física"];
+    const disciplinasEnsinoFundamental = ["Português", "Matemática", "História", "Geografia", "Ciências", "Artes", "Educação Física", "Inglês"];
+    
+    let currentTurmaConfig = null;
+    let currentProfessorConfig = null;
+    let currentDisciplinaParaConfigurar = { nome: null, qtdAulasSemanais: 0, indexNaTurma: -1, turmaKeyParaRelacionamento: null, disciplinaIndexParaRelacionamento: null };
+    
+    let currentSerieAnoParaCadastro = null;
+    let totalTurmasParaCadastrarNaSerieAno = 0;
+    let turmasCadastradasNaSerieAnoCount = 0;
+    let turmaKeyParaEditarAulas = null;
+    
+    let allTurmasParaDisciplinas = [];
+    let currentTurmaParaDisciplinaIndex = 0;
+    
+    let disciplinasParaConfigurarQtdAulas = [];
+    let disciplinaAtualParaConfigurarQtdIndex = 0;
+    
+    let currentQtdIntervalos = 0;
+    let currentIntervaloIndex = 0;
+    let tempAulasDiarias = 0;
+    let tempDuracaoIntervalo = 0;
+    
+    const listaParametrosProcessamento = [
+        { id: "DISP_PROFESSORES", nome: "Considerar Disponibilidade dos Professores", habilitadoDefault: true, precisaValor: false },
+        { id: "CHOQUE_PROFESSORES", nome: "Não permitir Choque de Professores (obrigatório)", habilitadoDefault: true, precisaValor: false },
+        { id: "AULAS_CONJUGADAS", nome: "Permitir Aulas Conjugadas", habilitadoDefault: true, precisaValor: false },
+        { id: "NUM_MAX_AULAS_PROF_TURMA_DIA", nome: "Definir Nº Máximo de Aulas do Professor na Mesma Turma no Mesmo dia", habilitadoDefault: true, precisaValor: true, placeholder: "Ex: 2" },
+        { id: "ELIMINAR_JANELAS_PROFESSORES", nome: "Tentar Eliminar Janelas dos Professores", habilitadoDefault: true, precisaValor: false },
+        { id: "ELIMINAR_JANELAS_ALUNOS", nome: "Tentar Eliminar Janelas dos Alunos", habilitadoDefault: false, precisaValor: false },
+        { id: "EVITAR_PROF_1_AULA_DIA", nome: "Tentar Evitar Professor com apenas 1 aula no dia", habilitadoDefault: false, precisaValor: false },
+    ];
+    let currentProfessorGradeIndex = 0;
+
+
+    const BASE_STORAGE_KEY = 'horarioFacilSalvoUnico';
+
+
+    // =======================================================================
+    // 2. *** ScheduleGenerator Class (CORRIGIDA) ***
+    // =======================================================================
+    class ScheduleGenerator {
+        constructor(config = {}) {
+            this.config = {
+                maxOptimizationAttempts: config.maxOptimizationAttempts || 100,
+                maxBacktrackingDepth: config.maxBacktrackingDepth || 500, // Aumentado para buscas mais profundas
+                penaltyWeights: {
+                    gapHour: 10,
+                    teacherOverload: 15,
+                    consecutiveViolation: 20,
+                    fixedSlotViolation: 50
+                },
+                ...config
+            };
+            
+            this.schedule = new Map();
+            this.conflicts = [];
+            this.optimizationHistory = [];
+        }
+
+
+        initializeData(input) {
+            this.classes = input.classes;
+            this.subjects = input.subjects;
+            this.teachers = input.teachers;
+            this.timeSlots = input.timeSlots;
+            this.constraints = input.constraints;
+            this.fixedSchedules = input.fixedSchedules || [];
+            
+            // Otimizações para performance
+            this.teacherMap = new Map(this.teachers.map(t => [t.id, t]));
+            this.teacherDailyHours = new Map();
+            this.teachers.forEach(t => {
+                const dailyMap = new Map();
+                diasDaSemanaEng.forEach(day => dailyMap.set(day, 0));
+                this.teacherDailyHours.set(t.id, dailyMap);
+            });
+
+
+            this.teacherSubjects = this.buildTeacherSubjectMap();
+            this.subjectRequirements = this.buildSubjectRequirements();
+            this.availabilityMatrix = this.buildAvailabilityMatrix();
+            this.teacherSchedule = new Map();
+        }
+
+
+        buildTeacherSubjectMap() {
+            const map = new Map();
+            this.teachers.forEach(teacher => {
+                teacher.subjects.forEach(subjectId => {
+                    if (!map.has(subjectId)) map.set(subjectId, []);
+                    map.get(subjectId).push(teacher.id);
+                });
+            });
+            return map;
+        }
+
+
+        buildSubjectRequirements() {
+            const requirements = new Map();
+            this.classes.forEach(classItem => {
+                const classReqs = new Map();
+                this.subjects.forEach(subject => {
+                    if (subject.classId === classItem.id) {
+                        classReqs.set(subject.id, {
+                            totalHours: subject.weeklyHours,
+                            allocatedHours: 0,
+                            grouping: subject.canBeGrouped || false,
+                            maxConsecutive: subject.maxConsecutive || 2,
+                            teacherId: subject.teacherId
+                        });
+                    }
+                });
+                requirements.set(classItem.id, classReqs);
+            });
+            return requirements;
+        }
+
+
+        buildAvailabilityMatrix() {
+            const matrix = new Map();
+            this.teachers.forEach(teacher => {
+                const teacherAvailability = new Map();
+                this.timeSlots.forEach(slot => {
+                    const key = `${slot.day}-${slot.period}`;
+                    const isAvailable = teacher.availability && teacher.availability[slot.day] ? 
+                                        teacher.availability[slot.day][slot.period] === 'D' : 
+                                        false;
+                    teacherAvailability.set(key, isAvailable);
+                });
+                matrix.set(teacher.id, teacherAvailability);
+            });
+            return matrix;
+        }
+
+
+        async generateSchedule() {
+            try {
+                this.applyFixedSchedules();
+                const success = await this.backtrackingSchedule();
+                
+                if (!success) {
+                    console.log("Backtracking inicial falhou. Analisando conflitos...");
+                    return this.generateImprovementSuggestions();
+                }
+                
+                return {
+                    success: true,
+                    schedule: this.exportSchedule(),
+                    metrics: this.calculateMetrics(),
+                };
+            } catch (error) {
+                console.error("Erro em generateSchedule:", error);
+                return {
+                    success: false,
+                    error: error.message,
+                    suggestions: this.generateImprovementSuggestions()
+                };
+            }
+        }
+
+
+        applyFixedSchedules() {
+            this.fixedSchedules.forEach(fixed => {
+                const key = `${fixed.classId}-${fixed.day}-${fixed.period}`;
+                const assignment = {
+                    classId: fixed.classId,
+                    subjectId: fixed.subjectId,
+                    teacherId: fixed.teacherId,
+                    isFixed: true
+                };
+                this.schedule.set(key, assignment);
+
+
+                if (fixed.teacherId) {
+                    const teacherKey = `${fixed.teacherId}-${fixed.day}-${fixed.period}`;
+                    this.teacherSchedule.set(teacherKey, assignment);
+                    
+                    const dailyMap = this.teacherDailyHours.get(fixed.teacherId);
+                    if (dailyMap) {
+                        dailyMap.set(fixed.day, (dailyMap.get(fixed.day) || 0) + 1);
+                    }
+                }
+                
+                const reqs = this.subjectRequirements.get(fixed.classId);
+                if(reqs && reqs.has(fixed.subjectId)) {
+                    reqs.get(fixed.subjectId).allocatedHours++;
+                }
+            });
+        }
+
+
+        async backtrackingSchedule(depth = 0) {
+            // Libera a thread principal para evitar que o navegador trave
+            if (depth > 0 && depth % 50 === 0) {
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
+
+
+            if (depth > this.config.maxBacktrackingDepth) {
+                console.warn("Profundidade máxima de backtracking atingida.");
+                return false;
+            }
+            
+            const assignment = this.getNextAssignment();
+            if (!assignment) return true; // Sucesso
+            
+            const possibleSlots = this.findPossibleSlots(assignment);
+            
+            for (const slot of possibleSlots) {
+                this.assign(assignment, slot);
+                if (await this.backtrackingSchedule(depth + 1)) {
+                    return true;
+                }
+                this.unassign(assignment, slot);
+            }
+            
+            return false;
+        }
+
+
+        getNextAssignment() {
+            for (const [classId, requirements] of this.subjectRequirements.entries()) {
+                for (const [subjectId, req] of requirements.entries()) {
+                    if (req.allocatedHours < req.totalHours) {
+                        return { classId, subjectId, teacherId: req.teacherId };
+                    }
+                }
+            }
+            return null;
+        }
+
+
+        findPossibleSlots(assignment) {
+            return this.timeSlots.filter(slot => this.canAssign(assignment, slot));
+        }
+
+
+        canAssign(assignment, slot) {
+            const { classId, teacherId } = assignment;
+            const classKey = `${classId}-${slot.day}-${slot.period}`;
+            const teacherKey = `${teacherId}-${slot.day}-${slot.period}`;
+
+
+            if (this.schedule.has(classKey)) return false;
+            if (this.teacherSchedule.has(teacherKey)) return false;
+            
+            if (teacherId) {
+                if (!this.availabilityMatrix.get(teacherId)?.get(`${slot.day}-${slot.period}`)) return false;
+                
+                const teacher = this.teacherMap.get(teacherId);
+                if (!teacher) return false;
+
+
+                const dailyLimit = (this.constraints.maxHoursPerDay !== undefined && this.constraints.maxHoursPerDay !== null) 
+                                 ? this.constraints.maxHoursPerDay 
+                                 : (teacher.maxHoursPerDay || 99);
+                
+                const dailyCount = this.teacherDailyHours.get(teacherId)?.get(slot.day) || 0;
+                
+                if (dailyCount >= dailyLimit) return false;
+            }
+
+
+            return true;
+        }
+
+
+        assign(assignment, slot) {
+            const { classId, teacherId, subjectId } = assignment;
+            const classKey = `${classId}-${slot.day}-${slot.period}`;
+            this.schedule.set(classKey, assignment);
+            
+            if(teacherId) {
+                const teacherKey = `${teacherId}-${slot.day}-${slot.period}`;
+                this.teacherSchedule.set(teacherKey, assignment);
+                const dailyMap = this.teacherDailyHours.get(teacherId);
+                if (dailyMap) {
+                    dailyMap.set(slot.day, (dailyMap.get(slot.day) || 0) + 1);
+                }
+            }
+            
+            this.subjectRequirements.get(classId).get(subjectId).allocatedHours++;
+        }
+
+
+        unassign(assignment, slot) {
+            const { classId, teacherId, subjectId } = assignment;
+            const classKey = `${classId}-${slot.day}-${slot.period}`;
+            this.schedule.delete(classKey);
+
+
+            if(teacherId) {
+                const teacherKey = `${teacherId}-${slot.day}-${slot.period}`;
+                this.teacherSchedule.delete(teacherKey);
+                const dailyMap = this.teacherDailyHours.get(teacherId);
+                if (dailyMap) {
+                    dailyMap.set(slot.day, dailyMap.get(slot.day) - 1);
+                }
+            }
+
+
+            this.subjectRequirements.get(classId).get(subjectId).allocatedHours--;
+        }
+
+
+        getUnassignedRequirements() {
+            const unassigned = [];
+            for (const [classId, requirements] of this.subjectRequirements.entries()) {
+                for (const [subjectId, req] of requirements.entries()) {
+                    if (req.allocatedHours < req.totalHours) {
+                        unassigned.push({ classId, subjectId, teacherId: req.teacherId });
+                    }
+                }
+            }
+            return unassigned;
+        }
+        
+        generateImprovementSuggestions() {
+            const suggestions = [];
+            const unassigned = this.getUnassignedRequirements();
+
+
+            unassigned.forEach(ua => {
+                const teacher = this.teacherMap.get(ua.teacherId);
+                const subject = this.subjects.find(s => s.id === ua.subjectId);
+                const classItem = this.classes.find(c => c.id === ua.classId);
+                
+                let reasons = new Set();
+                this.timeSlots.forEach(slot => {
+                    const classKey = `${ua.classId}-${slot.day}-${slot.period}`;
+                    if(this.schedule.has(classKey)) return;
+
+
+                    const teacherKey = `${ua.teacherId}-${slot.day}-${slot.period}`;
+                    if(this.teacherSchedule.has(teacherKey)) {
+                        reasons.add(`Conflito de Professor: <b>${teacher.name}</b> já está em outra turma no horário ${slot.day}-${slot.period+1}.`);
+                    }
+                    if(!this.availabilityMatrix.get(ua.teacherId)?.get(`${slot.day}-${slot.period}`)) {
+                        reasons.add(`Indisponibilidade do Professor: <b>${teacher.name}</b> não está disponível em ${slot.day}-${slot.period+1}.`);
+                    }
+                });
+
+
+                suggestions.push({
+                    type: 'unassigned_class',
+                    priority: 'high',
+                    message: `Não foi possível alocar <b>${subject.name}</b> para a turma <b>${classItem.name}</b> com o professor <b>${teacher.name}</b>.`,
+                    details: Array.from(reasons)
+                });
+            });
+
+
+            return { success: false, suggestions };
+        }
+
+
+        exportSchedule() {
+            const scheduleByClass = new Map();
+            this.schedule.forEach((assignment, key) => {
+                const [classId, day, periodStr] = key.split('-');
+                const period = parseInt(periodStr);
+
+
+                if (!scheduleByClass.has(classId)) {
+                    scheduleByClass.set(classId, {});
+                }
+                const classSchedule = scheduleByClass.get(classId);
+
+
+                if (!classSchedule[day]) {
+                    classSchedule[day] = [];
+                }
+
+
+                const subject = this.subjects.find(s => s.id === assignment.subjectId);
+                const teacher = this.teacherMap.get(assignment.teacherId);
+                classSchedule[day][period] = `${subject?.name || 'N/A'} (${teacher?.name || 'N/D'})`;
+            });
+            return scheduleByClass;
+        }
+        
+        calculateMetrics() { return {}; }
+    }
+
+
+    // =======================================================================
+    // 3. FUNÇÕES AUXILIARES E DO CHATBOT
+    // =======================================================================
+
+
+    function getProfessorCargaHoraria(nomeProfessor) {
+        const professor = userData.professores.find(p => p.nome === nomeProfessor);
+        if (!professor) return { atribuidas: 0, disponivel: 0 };
+
+
+        let aulasAtribuidas = 0;
+        Object.values(userData.horarioFinal).forEach(turma => {
+            turma.disciplinas.forEach(disc => {
+                if (disc.professorNome === nomeProfessor) {
+                    aulasAtribuidas += disc.qtdAulasSemanais;
+                }
+            });
+        });
+
+
+        let disponibilidadeReal = 0;
+        if (professor.gradeDisponibilidade) {
+            for (const dia in professor.gradeDisponibilidade) {
+                disponibilidadeReal += professor.gradeDisponibilidade[dia].filter(slot => slot === 'D').length;
+            }
+        }
+
+
+        return { atribuidas: aulasAtribuidas, disponivel: disponibilidadeReal };
+    }
+
+
+    function parseHoraParaMinutos(horaString) { 
+        if (!horaString || !horaString.includes(':')) return 0;
+        const [horas, minutos] = horaString.split(':').map(Number);
+        return horas * 60 + minutos;
+    }
+
+
+    function formatarMinutosParaHora(totalMinutos) {
+        const horas = Math.floor(totalMinutos / 60);
+        const minutos = totalMinutos % 60;
+        return `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`;
+    }
+
+
+    function adicionarMinutosAHora(horaString, minutosParaAdicionar) { 
+        let totalMinutos = parseHoraParaMinutos(horaString);
+        totalMinutos += minutosParaAdicionar;
+        return formatarMinutosParaHora(totalMinutos);
+    }
+
+
+    function addBotMessage(message, delay = 500, isQuestion = false) { 
+        return new Promise(resolve => {
+            setTimeout(() => {
+                const messageElement = document.createElement('div');
+                messageElement.className = `chat-bubble-bot p-3 max-w-full break-words ${isQuestion ? 'question-highlight-bot' : ''}`; 
+                messageElement.innerHTML = message;
+                chatMessages.appendChild(messageElement);
+                scrollToBottom();
+                resolve();
+            }, delay);
+        });
+    }
+
+
+    function addUserMessage(message) {
+        if (!message.trim()) return;
+        const messageElement = document.createElement('div');
+        messageElement.className = 'chat-bubble-user p-3 max-w-xs lg:max-w-md break-words';
+        messageElement.textContent = message;
+        chatMessages.appendChild(messageElement);
+        userInput.value = '';
+        scrollToBottom();
+    }
+
+
+    function scrollToBottom() {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+
+    function clearOptions() {
+        optionsContainer.innerHTML = '';
+    }
+
+
+    function showOptions(options, multiSelect = false, additionalActions = []) {
+        const buttonGroupContainer = document.createElement('div');
+        buttonGroupContainer.className = 'flex flex-wrap gap-2 justify-start';
+        chatMessages.appendChild(buttonGroupContainer);
+
+
+        const disableButtonGroup = () => {
+            buttonGroupContainer.querySelectorAll('button').forEach(btn => {
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+                btn.classList.remove('action-button');
+            });
+            userInput.disabled = false;
+            userInput.placeholder = "Digite sua mensagem...";
+            userInput.focus();
+        };
+
+
+        options.forEach(option => {
+            const button = document.createElement('button');
+            let highlightClass = '';
+            if (option.highlight) {
+                switch(option.highlight) {
+                    case 'import': highlightClass = 'button-highlight-import action-button'; break;
+                    case 'conclude': highlightClass = 'button-highlight-conclude action-button'; break;
+                    case 'action': highlightClass = 'button-highlight-action action-button'; break;
+                    case 'correct': highlightClass = 'button-correct action-button'; break;
+                    case 'save': highlightClass = 'button-save action-button'; break;
+                }
+            }
+            button.className = `option-button ${option.customClass || ''} ${highlightClass}`;
+            button.innerHTML = option.text;
+            button.dataset.value = option.value || option.text;
+
+
+            if (multiSelect) {
+                button.onclick = () => button.classList.toggle('option-button-selected');
+            } else {
+                button.onclick = () => {
+                    disableButtonGroup();
+                    addUserMessage(option.text.replace(/<[^>]*>?/gm, ''));
+                    handleUserInput(option.value || option.text);
+                };
+            }
+            buttonGroupContainer.appendChild(button);
+        });
+
+
+        if (multiSelect) {
+            const confirmButton = document.createElement('button');
+            confirmButton.className = 'bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg text-sm confirm-multiselect-btn action-button';
+            confirmButton.textContent = "Confirmar Seleção";
+            buttonGroupContainer.appendChild(confirmButton);
+            
+            confirmButton.onclick = () => {
+                disableButtonGroup();
+                const selectedValues = [];
+                const selectedTexts = [];
+                
+                buttonGroupContainer.querySelectorAll('.option-button-selected').forEach(btn => {
+                    selectedValues.push(btn.dataset.value);
+                    selectedTexts.push(btn.textContent);
+                });
+
+
+                addUserMessage(selectedTexts.length > 0 ? selectedTexts.join(', ') : "Nenhuma opção selecionada.");
+                handleUserInput(selectedValues); 
+            };
+        }
+        
+        additionalActions.forEach(action => {
+            const button = document.createElement('button');
+            button.className = `option-button button-highlight-action mt-2`; 
+            button.textContent = action.text;
+            buttonGroupContainer.appendChild(button);
+
+
+            button.onclick = () => {
+                disableButtonGroup();
+                addUserMessage(action.text);
+                handleUserInput(action.value);
+            };
+        });
+
+
+        userInput.disabled = true;
+        userInput.placeholder = "Selecione uma opção acima";
+        scrollToBottom();
+    }
+
+
+    // =======================================================================
+    // 4. Funções de Adaptação e Geração com ScheduleGenerator
+    // =======================================================================
+
+
+    function adaptDataForScheduleGenerator(sourceData) {
+        const schoolData = {
+            classes: [],
+            subjects: [],
+            teachers: [],
+            timeSlots: [],
+            constraints: {},
+            fixedSchedules: []
+        };
+
+
+        schoolData.classes = Object.values(sourceData.horarioFinal).map(turma => ({
+            id: turma.key,
+            name: turma.displayText,
+            grade: turma.serieAno
+        }));
+
+
+        const turmasArray = Object.values(sourceData.horarioFinal);
+        const maxAulasDiarias = turmasArray.length > 0 ? Math.max(...turmasArray.map(t => t.aulasDiarias)) : 0;
+        
+        turmasArray.forEach(turma => {
+            turma.disciplinas.forEach(disc => {
+                schoolData.subjects.push({
+                    id: `${turma.key}-${disc.nome}`,
+                    name: disc.nome,
+                    weeklyHours: disc.qtdAulasSemanais,
+                    canBeGrouped: true, 
+                    maxConsecutive: 2,
+                    classId: turma.key,
+                    teacherId: disc.professorNome
+                });
+            });
+
+
+            (turma.horariosFixos || []).forEach(fixed => {
+                schoolData.fixedSchedules.push({
+                    day: diasDaSemanaEng[diasDaSemana.indexOf(fixed.dia)],
+                    period: fixed.periodo,
+                    classId: turma.key,
+                    subjectId: `${turma.key}-${fixed.disciplina}`,
+                    teacherId: turma.disciplinas.find(d => d.nome === fixed.disciplina)?.professorNome
+                });
+            });
+        });
+
+
+        schoolData.teachers = sourceData.professores.map(prof => {
+            const newAvailability = {};
+            if (prof.gradeDisponibilidade) {
+                diasDaSemana.forEach((diaPt, index) => {
+                    const diaEn = diasDaSemanaEng[index];
+                    if (prof.gradeDisponibilidade[diaPt]) {
+                        newAvailability[diaEn] = prof.gradeDisponibilidade[diaPt];
+                    }
+                });
+            }
+            return {
+                id: prof.nome,
+                name: prof.nome,
+                subjects: prof.disciplinasMinistra,
+                availability: newAvailability,
+                maxHoursPerDay: sourceData.parametrosProcessamento?.NUM_MAX_AULAS_PROF_TURMA_DIA?.valor || 6
+            };
+        });
+
+
+        for (let i = 0; i < diasDaSemana.length; i++) {
+            for (let j = 0; j < maxAulasDiarias; j++) {
+                schoolData.timeSlots.push({
+                    day: diasDaSemanaEng[i],
+                    period: j
+                });
+            }
+        }
+
+
+        schoolData.constraints = {
+            maxHoursPerDay: sourceData.parametrosProcessamento?.NUM_MAX_AULAS_PROF_TURMA_DIA?.valor
+        };
+
+
+        return schoolData;
+    }
+    
+    async function iniciarGeracaoComScheduleGenerator() {
+        await addBotMessage("Adaptando dados para o novo gerador avançado...");
+        const schoolData = adaptDataForScheduleGenerator(userData);
+        
+        await addBotMessage("Iniciando geração com o algoritmo <b>ScheduleGenerator</b>...");
+        const generator = new ScheduleGenerator();
+        generator.initializeData(schoolData);
+        const result = await generator.generateSchedule();
+
+
+        if (result.success) {
+            await addBotMessage("Horário gerado com sucesso pelo novo algoritmo!");
+            userData.horarioGerado = result.schedule;
+            await mostrarHorarioGerado();
+        } else {
+            await addBotMessage("Não foi possível gerar um horário completo. Analisando sugestões...");
+            await mostrarSugestoesDeMelhoria(result.suggestions);
+        }
+    }
+
+
+    async function mostrarSugestoesDeMelhoria(suggestions) {
+        if (!suggestions || suggestions.length === 0) {
+            await addBotMessage("Nenhuma sugestão específica foi encontrada, mas a geração falhou. Verifique se há professores suficientes para todas as disciplinas ou se as restrições são muito rígidas.");
+            return;
+        }
+
+
+        let html = "<b>Sugestões para Melhorar o Horário:</b><ul class='list-disc pl-5 mt-2 space-y-2'>";
+        const uniqueMessages = new Set();
+        suggestions.forEach(sug => {
+            if (!uniqueMessages.has(sug.message)) {
+                html += `<li>${sug.message}`;
+                if (sug.details && sug.details.length > 0) {
+                    html += "<ul class='list-disc pl-5 text-sm text-red-700'>";
+                    sug.details.forEach(detail => {
+                        html += `<li>${detail}</li>`;
+                    });
+                    html += "</ul>";
+                }
+                html += "</li>";
+                uniqueMessages.add(sug.message);
+            }
+        });
+        html += "</ul>";
+
+
+        await addBotMessage(html);
+        await addBotMessage("O que deseja fazer?", 500, true);
+        showOptions([
+            { text: "Corrigir Disponibilidade de Professor", value: "OTIMIZAR_PROFESSORES", highlight: "action" },
+            { text: "Corrigir Horários Fixos da Turma", value: "OTIMIZAR_HORARIOS_FIXOS", highlight: "action" },
+            { text: "Voltar para o início", value: "REFAZER_TUDO", highlight: "correct" },
+        ]);
+        conversationState = 'AWAITING_OPTIMIZATION_ACTION';
+    }
+
+
+    // =======================================================================
+    // 5. Funções de Lógica do Chatbot (Resto do código)
+    // =======================================================================
+    
+        function prepararListaTurmasParaConfiguracaoDisciplinas() {
+            allTurmasParaDisciplinas = []; 
+            for (const turmaKey in userData.horarioFinal) {
+                const turma = userData.horarioFinal[turmaKey];
+                 if (!turma.disciplinas) { 
+                    turma.disciplinas = []; 
+                }
+                if (!turma.horariosFixos) {
+                    turma.horariosFixos = [];
+                }
+                allTurmasParaDisciplinas.push(turma);
+            }
+        }
+        
+async function proximaDisciplinaParaConfigurarQtdAulas() {
+    if (disciplinaAtualParaConfigurarQtdIndex < disciplinasParaConfigurarQtdAulas.length) {
+        currentDisciplinaParaConfigurar.nome = disciplinasParaConfigurarQtdAulas[disciplinaAtualParaConfigurarQtdIndex];
+        
+        const qtdAulasOptions = [];
+        for (let i = 1; i <= 20; i++) {
+            qtdAulasOptions.push({ text: `${i}`, value: `${i}` });
+        }
+
+
+        await addBotMessage(`Quantas aulas semanais de <b>${currentDisciplinaParaConfigurar.nome}</b> a turma <b>${currentTurmaConfig.displayText}</b> terá?`, 500, true);
+        showOptions(qtdAulasOptions);
+        conversationState = 'AWAITING_QTD_AULAS_DISCIPLINA_TURMA';
+
+
+    } else {
+        disciplinasParaConfigurarQtdAulas = []; 
+        disciplinaAtualParaConfigurarQtdIndex = 0;
+        await mostrarMenuDisciplinasDaTurmaAtual(); 
+    }
+}
+
+
+async function mostrarMenuDisciplinasDaTurmaAtual() {
+    clearOptions(); 
+
+
+    if (currentTurmaConfig.disciplinas && currentTurmaConfig.disciplinas.length > 0) {
+        let disciplinasHtml = '<ul class="list-none pl-0 my-2 space-y-1">';
+        currentTurmaConfig.disciplinas.forEach((d, index) => {
+            disciplinasHtml += `
+                <li class="flex items-center justify-between p-2 rounded-lg" style="background-color: #f3f4f6;">
+                    <span>${d.nome} (${d.qtdAulasSemanais} aulas/sem)</span>
+                    <button 
+                        onclick="addUserMessage('Remover ${d.nome}'); handleUserInput('PROMPT_REMOVE_DISC_${index}')" 
+                        class="text-red-500 hover:text-red-700 font-bold text-xl px-2" 
+                        title="Remover ${d.nome}"
+                    >&times;</button>
+                </li>
+            `;
+        });
+        disciplinasHtml += '</ul>';
+        await addBotMessage(`Disciplinas atuais de <b>${currentTurmaConfig.displayText}</b>:<br>${disciplinasHtml}`, 0);
+    } else {
+        await addBotMessage(`Nenhuma disciplina adicionada ainda para <b>${currentTurmaConfig.displayText}</b>.`);
+    }
+    
+    const acoesBase = [
+        { text: "Adicionar disciplina(s) da lista", value: "ADD_DISC_LISTA" },
+        { text: "Cadastrar nova disciplina", value: "ADD_DISC_NOVA" }
+    ];
+    
+    const turmasParaImportar = allTurmasParaDisciplinas.filter(t => 
+        t.key !== currentTurmaConfig.key && 
+        t.disciplinas && t.disciplinas.length > 0 
+    );
+
+
+    if (turmasParaImportar.length > 0) {
+        acoesBase.push({ text: "Importar disciplinas de outra turma", value: "IMPORT_DISC_TURMA", highlight: "import" });
+    }
+
+
+    if (currentTurmaConfig.disciplinas && currentTurmaConfig.disciplinas.length > 0) {
+        acoesBase.push({ text: "Fixar horários de disciplinas", value: "FIXAR_HORARIOS_DISC", highlight: "action"});
+    }
+    
+    acoesBase.push({ text: "Concluir disciplinas para esta turma", value: "CONCLUIR_DISC_TURMA", highlight: "conclude" });
+    
+    await addBotMessage(`O que deseja fazer para a turma <b>${currentTurmaConfig.displayText}</b>?`, 500, true);
+    showOptions(acoesBase);
+    conversationState = 'AWAITING_DISCIPLINA_TURMA_ACTION';
+}
+        async function proximaTurmaParaDisciplinas() {
+            if (currentTurmaParaDisciplinaIndex < allTurmasParaDisciplinas.length) {
+                currentTurmaConfig = allTurmasParaDisciplinas[currentTurmaParaDisciplinaIndex]; 
+
+
+                await addBotMessage(`Configurando disciplinas para a turma: <b>${currentTurmaConfig.displayText}</b>.`);
+                await mostrarMenuDisciplinasDaTurmaAtual(); 
+            } else {
+                await addBotMessage("Cadastro de disciplinas concluído para todas as turmas. Deseja prosseguir ou corrigir as disciplinas?");
+                showOptions([
+                    {text: "Prosseguir para Cadastro de Professores", value: "PROSSEGUIR_PROFESSORES", highlight: "conclude"},
+                    {text: "Corrigir Cadastro de Disciplinas", value: "CORRIGIR_DISCIPLINAS", highlight: "correct"}
+                ]);
+                conversationState = 'CONFIRMAR_CADASTRO_DISCIPLINAS_CONCLUIDO';
+            }
+        }
+
+
+        async function iniciarCadastroDisciplinas() {
+            prepararListaTurmasParaConfiguracaoDisciplinas(); 
+            currentTurmaParaDisciplinaIndex = 0;
+            await proximaTurmaParaDisciplinas();
+        }
+
+
+        let turmasParaRelacionamento = [];
+        let currentTurmaRelacionamentoIndex = 0;
+        let currentDisciplinaRelacionamentoIndex = 0;
+
+
+
+
+        async function iniciarRelacionamentoProfessorDisciplina() {
+            turmasParaRelacionamento = Object.values(userData.horarioFinal).filter(turma => turma.disciplinas && turma.disciplinas.length > 0);
+            currentTurmaRelacionamentoIndex = 0;
+            currentDisciplinaRelacionamentoIndex = 0;
+            await proximaDisciplinaParaRelacionar();
+        }
+
+
+        async function validarCargaHorariaProfessores() {
+            await addBotMessage("Validando a carga horária de todos os professores...");
+            
+            let professoresSobrecarregados = [];
+            
+            for (const professor of userData.professores) {
+                const carga = getProfessorCargaHoraria(professor.nome);
+                const saldo = carga.disponivel - carga.atribuidas;
+                
+                if (saldo < 0) {
+                    professoresSobrecarregados.push({
+                        nome: professor.nome,
+                        atribuidas: carga.atribuidas,
+                        disponivel: carga.disponivel,
+                    });
+                }
+            }
+            
+            if (professoresSobrecarregados.length > 0) {
+                let erroMsg = "<b>Atenção: Validação falhou!</b> Os seguintes professores estão com mais aulas atribuídas do que horários disponíveis:<br><ul class='list-disc pl-5 mt-2'>";
+                professoresSobrecarregados.forEach(p => {
+                    erroMsg += `<li><b>${p.nome}</b>: ${p.atribuidas} aulas atribuídas, mas só ${p.disponivel} horários disponíveis.</li>`;
+                });
+                erroMsg += "</ul>";
+                
+                await addBotMessage(erroMsg);
+                await addBotMessage("É necessário corrigir isso antes de gerar o horário. O que deseja fazer?", 500, true);
+
+
+                tempData.professoresSobrecarregados = professoresSobrecarregados;
+                
+                showOptions([
+                    { text: "Reatribuir disciplinas", value: "CORRIGIR_RELACIONAMENTO_GLOBAL", highlight: "correct" },
+                    { text: "Corrigir disponibilidade dos professores", value: "CORRIGIR_PROFESSORES_TABELA", highlight: "action" }
+                ]);
+                
+                conversationState = 'HANDLE_CORRECTION_CHOICE';
+
+
+            } else {
+                await addBotMessage("Validação de carga horária concluída com sucesso! Todos os professores têm horários suficientes.");
+                await addBotMessage("Vamos para as configurações finais antes de gerar o horário.", 1000);
+                
+                await exibirTelaConfiguracaoFinal();
+                conversationState = 'AWAITING_FINAL_CONFIG_CONFIRMATION';
+            }
+        }
+
+
+async function proximaDisciplinaParaRelacionar() {
+    if (currentTurmaRelacionamentoIndex < turmasParaRelacionamento.length) {
+        const turmaAtual = turmasParaRelacionamento[currentTurmaRelacionamentoIndex];
+        
+        if (currentDisciplinaRelacionamentoIndex < turmaAtual.disciplinas.length) {
+            const disciplinaAtual = turmaAtual.disciplinas[currentDisciplinaRelacionamentoIndex];
+            
+            if (disciplinaAtual.professorNome) { 
+                currentDisciplinaRelacionamentoIndex++;
+                await proximaDisciplinaParaRelacionar(); 
+                return;
+            }
+
+
+            await addBotMessage(`Turma: <b>${turmaAtual.displayText}</b><br>Disciplina: <b>${disciplinaAtual.nome}</b> (${disciplinaAtual.qtdAulasSemanais} aulas/sem)`);
+            
+            const professoresCompativeis = userData.professores.filter(prof => 
+                prof.disciplinasMinistra.includes(disciplinaAtual.nome)
+            );
+
+
+            if (professoresCompativeis.length > 0) {
+                await addBotMessage("Qual professor ministrará esta disciplina? A carga horária de cada um é exibida abaixo.", 500, true);
+                
+                const profOptions = professoresCompativeis.map(p => {
+                    const carga = getProfessorCargaHoraria(p.nome);
+                    const saldo = carga.disponivel - carga.atribuidas;
+                    const temAulasSuficientes = saldo >= disciplinaAtual.qtdAulasSemanais;
+                    const overloadClass = !temAulasSuficientes ? 'button-overloaded' : ''; 
+                    
+                    return {
+                        text: `${p.nome} <span class="text-xs opacity-75">(${saldo} aulas livres)</span>`,
+                        value: p.nome,
+                        customClass: `option-button ${overloadClass}` 
+                    };
+                });
+                profOptions.push({text: "Pular esta disciplina por agora", value: "PULAR_DISCIPLINA_REL", customClass: "option-button"});
+                
+                showOptions(profOptions);
+
+
+                userInput.disabled = true;
+                userInput.placeholder = "Selecione uma opção acima";
+
+
+                currentDisciplinaParaConfigurar.turmaKeyParaRelacionamento = turmaAtual.key;
+                currentDisciplinaParaConfigurar.disciplinaIndexParaRelacionamento = currentDisciplinaRelacionamentoIndex;
+                conversationState = 'RELACIONAMENTO_SELECIONAR_PROFESSOR';
+
+
+            } else {
+                await addBotMessage(`<b>ATENÇÃO:</b> Nenhum professor cadastrado ministra a disciplina de ${disciplinaAtual.nome}.`);
+                currentDisciplinaRelacionamentoIndex++;
+                await proximaDisciplinaParaRelacionar(); 
+            }
+        } else {
+            currentTurmaRelacionamentoIndex++;
+            currentDisciplinaRelacionamentoIndex = 0;
+            await proximaDisciplinaParaRelacionar(); 
+        }
+    } else {
+        await addBotMessage("Relacionamento inicial concluído. Verificando a viabilidade da carga horária dos professores...");
+        await validarCargaHorariaProfessores();
+    }
+}
+
+
+async function exibirTelaDeReatribuicao(professoresSobrecarregados) {
+    await addBotMessage("Use a tela abaixo para reatribuir as disciplinas dos professores sobrecarregados.", 0, true);
+    
+    availabilityGridContainer.innerHTML = '';
+    availabilityGridContainer.classList.remove('hidden');
+
+
+    let containerHTML = `<h4 class="text-md font-semibold text-gray-800 mb-2">Reatribuição de Disciplinas</h4>`;
+    
+    professoresSobrecarregados.forEach(profInfo => {
+        containerHTML += `<div class="p-3 border rounded-lg mb-4">`;
+        containerHTML += `<h5 class="font-semibold">${profInfo.nome} (${profInfo.atribuidas} / ${profInfo.disponivel} aulas)</h5>`;
+        
+        Object.values(userData.horarioFinal).forEach(turma => {
+            turma.disciplinas.forEach((disc, discIndex) => {
+                if (disc.professorNome === profInfo.nome) {
+                    const outrosProfessores = userData.professores.filter(p => p.nome !== profInfo.nome && p.disciplinasMinistra.includes(disc.nome));
+                    
+                    containerHTML += `<div class="flex items-center justify-between my-2 p-2 bg-gray-50 rounded">`;
+                    containerHTML += `<span>${turma.displayText} - ${disc.nome}</span>`;
+                    containerHTML += `<select class="reatribuir-select border-gray-300 rounded-md" data-turma-key="${turma.key}" data-disc-index="${discIndex}">`;
+                    containerHTML += `<option value="${disc.professorNome}">${disc.professorNome} (Manter)</option>`;
+                    outrosProfessores.forEach(outroProf => {
+                        containerHTML += `<option value="${outroProf.nome}">${outroProf.nome}</option>`;
+                    });
+                    containerHTML += `<option value="NOVO_PROFESSOR">-- Cadastrar Novo Professor --</option>`;
+                    containerHTML += `</select></div>`;
+                }
+            });
+        });
+        containerHTML += `</div>`;
+    });
+
+
+    availabilityGridContainer.innerHTML += containerHTML;
+
+
+    const confirmButton = document.createElement('button');
+    confirmButton.textContent = 'Confirmar Reatribuições';
+    confirmButton.className = 'option-button button-highlight-conclude mt-4';
+    confirmButton.onclick = () => handleUserInput('CONFIRMAR_REATRIBUICAO');
+    availabilityGridContainer.appendChild(confirmButton);
+    
+    conversationState = 'AWAITING_REATRIBUICAO_CONFIRMATION';
+}
+
+
+function contarAulasAlocadas(disciplinaNome, turmaKey) {
+    let count = 0;
+    if (!userData.horarioGerado || !userData.horarioGerado[turmaKey]) return 0;
+    
+    for (const dia in userData.horarioGerado[turmaKey]) {
+        count += userData.horarioGerado[turmaKey][dia].filter(aula => aula.startsWith(disciplinaNome)).length;
+    }
+    return count;
+}
+
+
+function encontrarAulasNaoAlocadas() {
+    let aulasNaoAlocadas = [];
+    Object.values(userData.horarioFinal).forEach(turma => {
+        turma.disciplinas.forEach(disciplina => {
+            const aulasEsperadas = disciplina.qtdAulasSemanais;
+            const aulasAlocadas = contarAulasAlocadas(disciplina.nome, turma.key);
+            const aulasFaltantes = aulasEsperadas - aulasAlocadas;
+            for (let i = 0; i < aulasFaltantes; i++) {
+                aulasNaoAlocadas.push({
+                    disciplinaNome: disciplina.nome,
+                    professorNome: disciplina.professorNome,
+                    turmaKey: turma.key,
+                    turmaObj: turma,
+                });
+            }
+        });
+    });
+    return aulasNaoAlocadas;
+}
+
+
+function reconstruirOcupacaoProfessores() {
+    ocupacaoProfessores = {};
+    if (!userData.horarioGerado) return;
+
+
+    Object.keys(userData.horarioGerado).forEach(turmaKey => {
+        const turma = userData.horarioGerado[turmaKey];
+        diasDaSemana.forEach(dia => {
+            turma[dia].forEach((aula, periodo) => {
+                const match = aula.match(/\((.*?)\)/);
+                if (match && match[1] && match[1] !== 'Sem Prof.') {
+                    const profNome = match[1];
+                    const profSlotKey = `${profNome}-${dia}-${periodo}`;
+                    ocupacaoProfessores[profSlotKey] = turmaKey;
+                }
+            });
+        });
+    });
+}
+
+
+async function analisarConflitosRestantes() {
+    reconstruirOcupacaoProfessores();
+
+
+    const aulasNaoAlocadas = encontrarAulasNaoAlocadas();
+
+
+    if (aulasNaoAlocadas.length > 0) {
+        let diagnosticoHTML = `<b>Diagnóstico Final:</b><br>Ainda resta(m) <b>${aulasNaoAlocadas.length} aula(s)</b> que não puderam ser alocadas. Os principais motivos são:`;
+        diagnosticoHTML += '<ul class="list-disc pl-5 mt-2 space-y-1">';
+
+
+        for (const aulaFaltante of aulasNaoAlocadas) {
+            diagnosticoHTML += `<li>Para a aula de <b>${aulaFaltante.disciplinaNome}</b> (Prof. ${aulaFaltante.professorNome || 'N/D'}) da turma <b>${aulaFaltante.turmaObj.displayText}</b>:`;
+            diagnosticoHTML += '<ul class="list-disc pl-5">';
+            
+            let conflitosEncontrados = new Set();
+            for (const dia of diasDaSemana) {
+                for (let periodo = 0; periodo < aulaFaltante.turmaObj.aulasDiarias; periodo++) {
+                    if (userData.horarioGerado[aulaFaltante.turmaKey][dia][periodo] === "Aula Vaga") {
+                        if (aulaFaltante.professorNome) {
+                            const prof = userData.professores.find(p => p.nome === aulaFaltante.professorNome);
+                            const disponibilidade = prof.gradeDisponibilidade[dia]?.[periodo];
+                            if (disponibilidade !== 'D') {
+                                conflitosEncontrados.add(`Professor está em <b>${disponibilidade === 'P' ? 'Planejamento' : 'Não Disponível'}</b> durante um horário vago da turma.`);
+                            }
+                            const profSlotKey = `${aulaFaltante.professorNome}-${dia}-${periodo}`;
+                            const turmaOcupanteKey = ocupacaoProfessores[profSlotKey];
+                            if(turmaOcupanteKey && turmaOcupanteKey !== aulaFaltante.turmaKey) {
+                                conflitosEncontrados.add(`Professor já alocado em outra turma (<b>${userData.horarioFinal[turmaOcupanteKey].displayText}</b>) durante um horário vago.`);
+                            }
+                        }
+                    }
+                }
+            }
+            if (conflitosEncontrados.size === 0) {
+                 conflitosEncontrados.add("Não há horários vagos na grade da turma que sejam compatíveis com a disponibilidade do professor.");
+            }
+            
+            conflitosEncontrados.forEach(conflito => {
+                 diagnosticoHTML += `<li class='text-red-700'>- ${conflito}</li>`;
+            });
+            diagnosticoHTML += '</ul></li>';
+        }
+        diagnosticoHTML += '</ul>';
+
+
+        await addBotMessage(diagnosticoHTML);
+        await addBotMessage("Com base nesta análise, o que deseja fazer?", 500, true);
+        
+        showOptions([
+            { text: "Otimizar Horário (Automático)", value: "OTIMIZAR_HORARIO", highlight: "conclude" },
+            { text: "Corrigir Disponibilidade de Professor", value: "OTIMIZAR_PROFESSORES", highlight: "action" },
+            { text: "Corrigir Horários Fixos da Turma", value: "OTIMIZAR_HORARIOS_FIXOS", highlight: "action" },
+            { text: "Exportar Mesmo Assim", value: "EXPORTAR_FINAL" }
+        ]);
+        conversationState = 'AWAITING_OPTIMIZATION_ACTION';
+
+
+    } else {
+        await addBotMessage("<b>Ótima notícia! Todas as aulas foram alocadas com sucesso.</b>");
+        await addBotMessage("O que deseja fazer agora?", 500, true);
+        showOptions([
+            {text: "Exportar Horário para PDF", value: "EXPORTAR_PDF", highlight:"action"},
+            {text: "Exportar Dados para Arquivo (.json)", value: "EXPORTAR_JSON", highlight:"action"},
+            {text: "Salvar e Encerrar", value: "SALVAR_E_ENCERRAR", highlight:"save"},
+        ]);
+        conversationState = 'CONFIRM_SAVE_HORARIO';
+    }
+}
+
+
+
+
+function generateTimeSlots(startHour, endHour, intervalMinutes) {
+    const slots = [];
+    let minutes = startHour * 60;
+    const endMinutes = endHour * 60;
+
+
+    while (minutes <= endMinutes) {
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+        minutes += intervalMinutes;
+    }
+    return slots;
+}
+
+
+async function askForQtdTurmas() {
+    const serieAnoLabel = userData.nivelEnsino === 'FUNDAMENTAL' ? 'Ano' : 'Série';
+    
+    const qtdTurmasOptions = [];
+    for (let i = 1; i <= 10; i++) {
+        qtdTurmasOptions.push({ text: `${i}`, value: `${i}` });
+    }
+    
+    await addBotMessage(`Quantas turmas do ${currentSerieAnoParaCadastro}º ${serieAnoLabel} você deseja cadastrar?`, 500, true);
+    showOptions(qtdTurmasOptions);
+    conversationState = 'AWAITING_QTD_TURMAS_BASICO';
+}
+        
+async function exportarHorarioParaPDFGeral() {
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'landscape' });
+
+
+        let firstPage = true;
+
+
+        if (!userData.horarioGerado || userData.horarioGerado.size === 0) {
+            await addBotMessage("Não há horário gerado para exportar.");
+            return;
+        }
+
+
+        for (const [turmaKey, horarioTurma] of userData.horarioGerado.entries()) {
+            if (!firstPage) {
+                doc.addPage();
+            }
+            firstPage = false;
+            const turmaInfo = userData.horarioFinal[turmaKey];
+            if (!turmaInfo) continue;
+
+
+            doc.setFontSize(16);
+            doc.text(`Horário da Turma: ${turmaInfo.displayText}`, 14, 15);
+            
+            const head = [['Horário', ...diasDaSemana]];
+            const body = [];
+
+
+            let horaAtualMinutos = parseHoraParaMinutos(userData.horarioInicioAulas);
+            const duracaoAula = userData.duracaoAulaMinutos || 50;
+            const maxAulasNoTurno = turmaInfo.aulasDiarias || 0;
+
+
+            for (let i = 0; i < maxAulasNoTurno; i++) {
+                const inicioAula = formatarMinutosParaHora(horaAtualMinutos);
+                const fimAula = adicionarMinutosAHora(inicioAula, duracaoAula);
+                
+                const rowData = [`${inicioAula} - ${fimAula}`];
+                diasDaSemana.forEach(dia => {
+                    const diaEng = diasDaSemanaEng[diasDaSemana.indexOf(dia)];
+                    const aulaConteudo = horarioTurma[diaEng]?.[i] || ' ';
+                    rowData.push(aulaConteudo.replace(' (Sem Prof.)', '').replace(' (N/D)', ''));
+                });
+                body.push(rowData);
+
+
+                horaAtualMinutos = parseHoraParaMinutos(fimAula);
+
+
+                const intervaloAposEstaAula = userData.intervalos.find(intervalo => intervalo.aposAula === (i + 1));
+                if (intervaloAposEstaAula) {
+                    const inicioIntervalo = formatarMinutosParaHora(horaAtualMinutos);
+                    const fimIntervalo = adicionarMinutosAHora(inicioIntervalo, intervaloAposEstaAula.duracaoMinutos);
+                    
+                    const intervaloRow = [{
+                        content: `INTERVALO (${intervaloAposEstaAula.duracaoMinutos} min)`,
+                        colSpan: diasDaSemana.length + 1,
+                        styles: { halign: 'center', fillColor: [254, 243, 199], textColor: [120, 53, 15] }
+                    }];
+                    body.push(intervaloRow);
+                    horaAtualMinutos = parseHoraParaMinutos(fimIntervalo);
+                }
+            }
+            
+            doc.autoTable({
+                head: head,
+                body: body,
+                startY: 25,
+                theme: 'grid',
+                headStyles: { fillColor: [224, 231, 255], textColor: [29, 78, 216], fontStyle: 'bold' },
+                styles: { font: 'helvetica', halign: 'center', fontSize: 8, cellPadding: 2 },
+                alternateRowStyles: { fillColor: [249, 250, 251] },
+            });
+        }
+        
+        const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+        doc.save(`horario_geral_${userData.anoReferencia}_${timestamp}.pdf`);
+        await addBotMessage("PDF do horário geral gerado e download iniciado!");
+    } catch(e) {
+         await addBotMessage("Ocorreu um erro ao gerar o PDF. Verifique se as bibliotecas jsPDF e jsPDF-AutoTable estão carregadas corretamente.");
+         console.error("Erro no PDF:", e);
+    }
+}
+
+
+
+
+async function mostrarHorarioGerado() {
+    if (!userData.horarioGerado || userData.horarioGerado.size === 0) {
+        await addBotMessage("Nenhum horário foi gerado ainda.");
+        await handleUserInput();
+        return;
+    }
+
+
+    let htmlOutput = "";
+    
+    for (const [turmaKey, horarioTurma] of userData.horarioGerado.entries()) {
+        const turmaInfo = userData.horarioFinal[turmaKey];
+        if (!turmaInfo) continue; 
+
+
+        htmlOutput += `<div class="my-4 p-3 border rounded-lg">`;
+        htmlOutput += `<h3 class="text-lg font-semibold mb-2">Turma: ${turmaInfo.displayText}</h3>`;
+        htmlOutput += `<div class="overflow-x-auto">`; 
+        htmlOutput += `<table class="data-table"><thead><tr><th>Horário</th>`; 
+        diasDaSemana.forEach(dia => htmlOutput += `<th>${dia}</th>`);
+        htmlOutput += `</tr></thead><tbody>`;
+
+
+        let horaAtualMinutos = parseHoraParaMinutos(userData.horarioInicioAulas);
+        const duracaoAula = userData.duracaoAulaMinutos || 50; 
+        const maxAulasNoTurno = turmaInfo.aulasDiarias || 0;
+
+
+        for (let i = 0; i < maxAulasNoTurno; i++) {
+            const inicioAula = formatarMinutosParaHora(horaAtualMinutos);
+            const fimAula = adicionarMinutosAHora(inicioAula, duracaoAula); 
+            
+            htmlOutput += `<tr><td>${inicioAula} - ${fimAula}</td>`; 
+            diasDaSemana.forEach((dia, diaIndex) => {
+                const diaEng = diasDaSemanaEng[diaIndex];
+                const aulaConteudo = horarioTurma[diaEng]?.[i] || ' ';
+                htmlOutput += `<td><div>${aulaConteudo}</div></td>`;
+            });
+            htmlOutput += `</tr>`;
+            horaAtualMinutos = parseHoraParaMinutos(fimAula); 
+
+
+            const intervaloAposEstaAula = userData.intervalos.find(intervalo => intervalo.aposAula === (i + 1));
+            if (intervaloAposEstaAula) {
+                const inicioIntervalo = formatarMinutosParaHora(horaAtualMinutos);
+                const fimIntervalo = adicionarMinutosAHora(inicioIntervalo, intervaloAposEstaAula.duracaoMinutos); 
+                htmlOutput += `<tr class="interval-row"><td colspan="${diasDaSemana.length + 1}">INTERVALO (${intervaloAposEstaAula.duracaoMinutos} min)</td></tr>`;
+                horaAtualMinutos = parseHoraParaMinutos(fimIntervalo); 
+            }
+        }
+        htmlOutput += `</tbody></table></div></div>`;
+    }
+    
+    horarioModalBody.innerHTML = htmlOutput;
+    horarioModal.style.display = "block";
+}
+
+
+        async function mostrarTabelaTurmasCadastradas() {
+            let htmlTable = "<b>Turmas Cadastradas:</b><br><br>";
+            const turmas = Object.values(userData.horarioFinal);
+
+
+            if (turmas.length === 0) {
+                htmlTable += "<p>Nenhuma turma cadastrada ainda.</p>";
+                 await addBotMessage(htmlTable);
+                 const serieAnoLabel = userData.nivelEnsino === 'FUNDAMENTAL' ? 'Ano' : 'Série';
+                 currentSerieAnoParaCadastro = '1'; 
+                 turmasCadastradasNaSerieAnoCount = 0; 
+                 await addBotMessage(`Vamos cadastrar as turmas, começando pelo ${currentSerieAnoParaCadastro}º ${serieAnoLabel}.`);
+                 await askForQtdTurmas();
+                 return;
+            } else {
+                htmlTable += `<table class="data-table"><thead><tr><th>Turma</th><th>Aulas Diárias</th><th>Aulas Semanais</th></tr></thead><tbody>`;
+                turmas.forEach(turma => {
+                    htmlTable += `<tr><td>${turma.displayText}</td><td>${turma.aulasDiarias}</td><td>${turma.aulasSemanais}</td></tr>`;
+                });
+                htmlTable += `</tbody></table>`;
+            }
+            await addBotMessage(htmlTable);
+            await addBotMessage("O que deseja fazer?", 500, true);
+            showOptions([
+                {text: "Prosseguir para Cadastro de Disciplinas", value: "PROSSEGUIR_DISCIPLINAS_TABELA", highlight:"conclude"},
+                {text: "Editar Aulas de uma Turma", value: "EDITAR_AULAS_TURMA_SELECIONAR_TABELA"},
+                {text: "Refazer Cadastro de Turmas", value: "CORRIGIR_TURMAS_GLOBAL", highlight: "correct"}
+            ]);
+            conversationState = 'CONFERIR_TURMAS_CADASTRADAS_ACAO';
+        }
+
+
+         async function mostrarTabelaProfessoresCadastrados() {
+            let htmlTable = "<b>Professores Cadastrados:</b><br><br>";
+            if (userData.professores.length === 0) {
+                htmlTable += "<p>Nenhum professor cadastrado ainda.</p>";
+            } else {
+                htmlTable += `<table class="data-table"><thead><tr><th>Nome</th><th>Disciplinas</th><th>Aulas/Sala</th><th>Aulas/Planej.</th></tr></thead><tbody>`;
+                userData.professores.forEach(prof => {
+                    htmlTable += `<tr><td>${prof.nome}</td><td>${prof.disciplinasMinistra.join(', ')}</td><td>${prof.aulasSemanaisSala}</td><td>${prof.aulasSemanaisPlanejamento}</td></tr>`;
+                });
+                htmlTable += `</tbody></table>`;
+            }
+            await addBotMessage(htmlTable);
+            await addBotMessage("O que deseja fazer?", 500, true);
+            showOptions([
+                {text: "Prosseguir para Relacionamento Professor-Disciplina", value: "PROSSEGUIR_RELACIONAMENTO_TABELA", highlight:"conclude"},
+                {text: "Cadastrar Novo Professor", value: "CADASTRAR_NOVO_PROFESSOR_TABELA", highlight: "action"},
+                {text: "Editar Disponibilidade de Professor", value: "CORRIGIR_PROFESSORES_TABELA", highlight: "correct"}
+    ]);
+            conversationState = 'CONFERIR_PROFESSORES_CADASTRADOS_ACAO';
+        }
+
+
+        async function mostrarTabelaRelacionamentosFeitos() {
+            let htmlTable = "<b>Relacionamento Professor-Disciplina por Turma:</b><br><br>";
+            let algumRelacionamentoFeito = false;
+            htmlTable += `<table class="data-table"><thead><tr><th>Turma</th><th>Disciplina</th><th>Professor Atribuído</th></tr></thead><tbody>`;
+            Object.values(userData.horarioFinal).forEach(turma => {
+                if (turma.disciplinas && turma.disciplinas.length > 0) {
+                    turma.disciplinas.forEach(disc => {
+                        htmlTable += `<tr><td>${turma.displayText}</td><td>${disc.nome} (${disc.qtdAulasSemanais} aulas)</td><td>${disc.professorNome || 'Nenhum'}</td></tr>`;
+                        if(disc.professorNome) algumRelacionamentoFeito = true;
+                    });
+                }
+            });
+            htmlTable += `</tbody></table>`;
+            if (!algumRelacionamentoFeito && Object.keys(userData.horarioFinal).length > 0) { 
+                 htmlTable = "<b>Relacionamento Professor-Disciplina por Turma:</b><br><br><p>Nenhum professor foi atribuído às disciplinas ainda.</p>";
+            } else if (Object.keys(userData.horarioFinal).length === 0) {
+                 htmlTable = "<b>Relacionamento Professor-Disciplina por Turma:</b><br><br><p>Nenhuma turma com disciplinas cadastradas para exibir relacionamentos.</p>";
+            }
+
+
+            await addBotMessage(htmlTable);
+            await addBotMessage("O que deseja fazer?", 500, true);
+             showOptions([
+                {text: "Prosseguir para Validação/Geração", value: "PROSSEGUIR_VALIDACAO_TABELA", highlight: "conclude"},
+                {text: "Corrigir Relacionamento", value: "CORRIGIR_RELACIONAMENTO_TABELA", highlight: "correct"}
+            ]);
+            conversationState = 'CONFERIR_RELACIONAMENTOS_FEITOS_ACAO';
+        }
+
+
+async function finalizarConfiguracaoTurmaMedioAtual() {
+    turmasCadastradasNaSerieAnoCount++;
+    currentTurmaKeyAulas = null; 
+
+
+    if (turmasCadastradasNaSerieAnoCount < totalTurmasParaCadastrarNaSerieAno) {
+        await addBotMessage(`Qual a identificação da ${turmasCadastradasNaSerieAnoCount + 1}ª turma da ${currentSerieAnoParaCadastro}ª Série? (Ex: A, B, Integral)`, 500, true);
+        conversationState = 'CADASTRO_TURMA_BASICO_ID_LOOP'; 
+    } else {
+        await addBotMessage(`Todas as ${totalTurmasParaCadastrarNaSerieAno} turmas da ${currentSerieAnoParaCadastro}ª Série foram cadastradas.`);
+        const proximaSerieMedio = parseInt(currentSerieAnoParaCadastro) + 1;
+        if (proximaSerieMedio <= 3) {
+            currentSerieAnoParaCadastro = proximaSerieMedio.toString();
+            turmasCadastradasNaSerieAnoCount = 0; 
+            await addBotMessage(`Vamos para a ${currentSerieAnoParaCadastro}ª Série.`);
+            await askForQtdTurmas();
+        } else {
+            await addBotMessage("Cadastro de todas as séries do Ensino Médio concluído.");
+            await mostrarTabelaTurmasCadastradas();
+        }
+    }
+}
+
+
+async function finalizarConfiguracaoTurmaFundamentalAtual() {
+    turmasCadastradasNaSerieAnoCount++;
+
+
+    if (turmasCadastradasNaSerieAnoCount < totalTurmasParaCadastrarNaSerieAno) {
+        await addBotMessage(`Qual a identificação da ${turmasCadastradasNaSerieAnoCount + 1}ª turma do ${currentSerieAnoParaCadastro}º Ano?`, 500, true);
+        conversationState = 'CADASTRO_TURMA_BASICO_ID_LOOP';
+    } else {
+        await addBotMessage(`Todas as ${totalTurmasParaCadastrarNaSerieAno} turmas do ${currentSerieAnoParaCadastro}º Ano foram cadastradas.`);
+        const proximoAnoFundamental = parseInt(currentSerieAnoParaCadastro) + 1;
+        if (proximoAnoFundamental <= 9) {
+            currentSerieAnoParaCadastro = proximoAnoFundamental.toString();
+            turmasCadastradasNaSerieAnoCount = 0; 
+            await addBotMessage(`Vamos para o ${currentSerieAnoParaCadastro}º Ano.`);
+            await askForQtdTurmas();
+        } else {
+            await addBotMessage("Cadastro de todos os anos do Ensino Fundamental concluído.");
+            await mostrarTabelaTurmasCadastradas();
+        }
+    }
+}
+        
+        async function exibirTelaConfiguracaoFinal() {
+            availabilityGridContainer.innerHTML = ''; // Limpa a área
+            availabilityGridContainer.classList.remove('hidden');
+
+
+            const agrupamentoOptions = [
+                {text: "Não Especificado", value: "NAO_ESPECIFICADO"},
+                {text: "Agrupamento Livre", value: "AGRUPAMENTO_LIVRE"},
+                {text: "Agrupar no máximo 2 aulas por dia SEGUIDAS", value: "MAX_2_SEGUIDAS"},
+                {text: "Agrupar no máximo 3 aulas por dia SEGUIDAS", value: "MAX_3_SEGUIDAS"},
+                {text: "Agrupar no máximo 4 aulas por dia SEGUIDAS", value: "MAX_4_SEGUIDAS"},
+                {text: "Agrupar no máximo 5 aulas por dia SEGUIDAS", value: "MAX_5_SEGUIDAS"},
+                {text: "Permitir no máximo 2 aulas por dia LIVRES", value: "MAX_2_LIVRES"},
+                {text: "Permitir no máximo 3 aulas por dia LIVRES", value: "MAX_3_LIVRES"},
+                {text: "Permitir no máximo 4 aulas por dia LIVRES", value: "MAX_4_LIVRES"},
+                {text: "Permitir no máximo 5 aulas por dia LIVRES", value: "MAX_5_LIVRES"},
+                {text: "Permitir no máximo 2 aulas por dia INTERCALADAS", value: "MAX_2_INTERCALADAS"},
+                {text: "Permitir no máximo 3 aulas por dia INTERCALADAS", value: "MAX_3_INTERCALADAS"},
+                {text: "Permitir no máximo 4 aulas por dia INTERCALADAS", value: "MAX_4_INTERCALADAS"},
+                {text: "Permitir no máximo 5 aulas por dia INTERCALADAS", value: "MAX_5_INTERCALADAS"}
+            ];
+
+
+            let containerHTML = `
+                <div class="mb-4">
+                    <label for="agrupamentoSelect" class="block text-sm font-medium text-gray-700 mb-1">Configuração de Agrupamento Geral:</label>
+                    <select id="agrupamentoSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        ${agrupamentoOptions.map(opt => `<option value="${opt.value}">${opt.text}</option>`).join('')}
+                    </select>
+                </div>
+                <h4 class="text-md font-semibold text-gray-800 mt-6 mb-2">Parâmetros de Processamento Adicionais</h4>
+                <table class="parameters-table">
+                    <thead>
+                        <tr>
+                            <th>Parâmetro</th>
+                            <th class="w-1/4">Habilitar</th>
+                            <th class="w-1/4">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+            
+            listaParametrosProcessamento.forEach(param => {
+                const isChecked = param.habilitadoDefault;
+                const valorInputId = `valor-${param.id}`;
+                const valorInputDisplay = param.precisaValor && isChecked ? '' : 'hidden';
+
+
+                containerHTML += `<tr>
+                                    <td class="text-left">${param.nome}</td>
+                                    <td>
+                                        <input type="checkbox" id="param-${param.id}" data-valor-input-id="${valorInputId}" ${isChecked ? 'checked' : ''} class="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                                    </td>
+                                    <td>
+                                        <input type="number" id="${valorInputId}" class="w-24 px-2 py-1 border border-gray-300 rounded-md ${valorInputDisplay}" placeholder="${param.placeholder || ''}">
+                                    </td>
+                                  </tr>`;
+            });
+            
+            containerHTML += `</tbody></table>`;
+            availabilityGridContainer.innerHTML = containerHTML;
+
+
+              // Add listeners
+            listaParametrosProcessamento.forEach(param => {
+                if(param.precisaValor) {
+                    const checkbox = document.getElementById(`param-${param.id}`);
+                    const valorInput = document.getElementById(checkbox.dataset.valorInputId);
+                    checkbox.addEventListener('change', (e) => {
+                        valorInput.classList.toggle('hidden', !e.target.checked);
+                    });
+                }
+            });
+
+
+            const saveButton = document.createElement('button');
+            saveButton.textContent = `Confirmar e Gerar Horário`;
+            saveButton.className = 'option-button button-highlight-conclude mt-4';
+            saveButton.onclick = () => handleUserInput("CONFIRMAR_CONFIGS_GERAR");
+            availabilityGridContainer.appendChild(saveButton);
+        }
+        
+
+
+        function salvarHorarioNoLocalStorage() {
+            try {
+                const userStorageKey = `${BASE_STORAGE_KEY}`; 
+                localStorage.setItem(userStorageKey, JSON.stringify(userData));
+                return true;
+            } catch (e) {
+                console.error("Erro ao salvar no localStorage:", e);
+                return false;
+            }
+        }
+
+
+        function carregarHorarioDoLocalStorage() {
+            const userStorageKey = `${BASE_STORAGE_KEY}`; 
+            const dadosSalvos = localStorage.getItem(userStorageKey);
+            if (dadosSalvos) {
+                try {
+                    const dadosParseados = JSON.parse(dadosSalvos);
+                    userData = {...userData, ...dadosParseados };
+
+
+                    if (!userData.turmas) userData.turmas = {};
+                    if (!userData.horarioFinal) userData.horarioFinal = {};
+                    if (!userData.professores) userData.professores = [];
+                    userData.professores.forEach(p => { 
+                        if (!p.gradeDisponibilidade) p.gradeDisponibilidade = {};
+                    });
+                    if (!userData.disciplinas) userData.disciplinas = [];
+                    if (!userData.horarioGerado) userData.horarioGerado = {};
+                    if (!userData.parametrosProcessamento) userData.parametrosProcessamento = {};
+                    if (!userData.intervalos) userData.intervalos = [];
+                    if (userData.duracaoAulaMinutos === undefined) userData.duracaoAulaMinutos = 0;
+
+
+
+
+                    return true;
+                } catch (e) {
+                    console.error("Erro ao carregar do localStorage (dados corrompidos?):", e);
+                    localStorage.removeItem(userStorageKey); 
+                    return false;
+                }
+            }
+            return false;
+        }
+        
+        function resetCompletoParaLogout() {
+             conversationState = 'START';
+             const disciplinasPreCadastradas = [...new Set([...disciplinasEnsinoFundamental, ...disciplinasEnsinoMedio])];
+             userData = {
+                anoReferencia: '',
+                turno: '',
+                horarioInicioAulas: '',
+                duracaoAulaMinutos: 0,
+                intervalos: [],
+                nivelEnsino: '',
+                horarioFinal: {},
+                disciplinas: [...disciplinasPreCadastradas], 
+                professores: [],
+                horarioGerado: {},
+                configAgrupamento: '',
+                parametrosProcessamento: {}
+            };
+            currentTurmaConfig = null;
+            currentProfessorConfig = null;
+            currentDisciplinaParaConfigurar = { nome: null, qtdAulasSemanais: 0, indexNaTurma: -1, turmaKeyParaRelacionamento: null, disciplinaIndexParaRelacionamento: null };
+            currentSerieAnoParaCadastro = null;
+            totalTurmasParaCadastrarNaSerieAno = 0;
+            turmasCadastradasNaSerieAnoCount = 0;
+            currentTurmaKeyAulas = null;
+            turmaKeyParaEditarAulas = null;
+            allTurmasParaDisciplinas = [];
+            currentTurmaParaDisciplinaIndex = 0;
+            disciplinasParaConfigurarQtdAulas = [];
+            disciplinaAtualParaConfigurarQtdIndex = 0;
+            currentQtdIntervalos = 0;
+            currentIntervaloIndex = 0;
+            tempAulasDiarias = 0;
+            tempQtdTurmas = 0;
+            currentProfessorGradeIndex = 0;
+        }
+
+
+
+
+        function resetarDadosParaNovoHorario() { 
+            resetCompletoParaLogout(); 
+        }
+        
+        async function handleJsonFileImport(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    try {
+                        const importedData = JSON.parse(e.target.result);
+                        if (importedData.horarioFinal) {
+                            userData = importedData;
+                            if (userData.horarioGerado && !(userData.horarioGerado instanceof Map)) {
+                                userData.horarioGerado = new Map(Object.entries(userData.horarioGerado));
+                            }
+                            salvarHorarioNoLocalStorage(); 
+                            await addBotMessage("Dados importados do arquivo com sucesso!");
+                            fileImportContainer.classList.add('hidden');
+                            await addBotMessage("O que você gostaria de fazer com os dados importados?", 500, true);
+                            showOptions([
+                                {text: "Visualizar Horário (se gerado)", value: "VISUALIZAR_CARREGADO", highlight: "action"},
+                                {text: "Continuar Edição", value: "CONTINUAR_EDICAO_CARREGADO", highlight:"action"},
+                                {text: "Gerar Horário", value: "GERAR_COM_DADOS_CARREGADOS"}
+                            ]);
+                            conversationState = 'MENU_DADOS_CARREGADOS';
+                        } else {
+                            await addBotMessage("ERRO: Arquivo JSON inválido ou com estrutura incorreta.");
+                            fileImportContainer.classList.add('hidden'); 
+                             await handleUserInput();
+                        }
+                    } catch (error) {
+                        await addBotMessage("ERRO ao processar o arquivo JSON: " + error.message);
+                        fileImportContainer.classList.add('hidden');
+                        await handleUserInput();
+                    }
+                };
+                reader.readAsText(file);
+            }
+        }
+
+
+        async function exportarDadosParaJSON() {
+            try {
+                const dataToExport = { ...userData };
+                if (dataToExport.horarioGerado instanceof Map) {
+                    dataToExport.horarioGerado = Object.fromEntries(dataToExport.horarioGerado);
+                }
+
+
+                const jsonData = JSON.stringify(dataToExport, null, 2); 
+                const blob = new Blob([jsonData], {type: "application/json"});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const timestamp = new Date().toISOString().slice(0,10).replace(/-/g,"");
+                a.href = url;
+                a.download = `horario_facil_dados_${timestamp}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                await addBotMessage("Arquivo JSON com os dados exportado com sucesso!");
+            } catch (e) {
+                await addBotMessage("Erro ao exportar os dados para JSON: " + e.message);
+            }
+            await addBotMessage("O que mais deseja fazer?", 500, true);
+             showOptions([
+                {text: "Exportar Horário para PDF", value: "EXPORTAR_PDF", highlight:"action"},
+                {text: "Salvar e Encerrar", value: "SALVAR_E_ENCERRAR", highlight:"save"},
+                {text: "Iniciar Novo Horário", value: "REFAZER_TUDO", highlight:"correct"}
+            ]);
+            conversationState = 'CONFIRM_SAVE_HORARIO';
+        }
+
+
+        async function iniciarConfiguracaoGradeDisponibilidadeTodosProfessores() {
+            currentProfessorGradeIndex = 0;
+            await proximoProfessorParaGradeDisponibilidade();
+        }
+
+
+        async function proximoProfessorParaGradeDisponibilidade() {
+            if (currentProfessorGradeIndex < userData.professores.length) {
+                 currentProfessorConfig = userData.professores[currentProfessorGradeIndex];
+                 await addBotMessage(`Configurando disponibilidade para o professor(a) <b>${currentProfessorConfig.nome}</b>.`);
+                 await exibirGradeDisponibilidadeParaProfessor(currentProfessorConfig);
+                 conversationState = 'CONFIGURANDO_GRADE_PROFESSOR';
+                 return; 
+            }
+
+
+            availabilityGridContainer.innerHTML = '';
+            availabilityGridContainer.classList.add('hidden');
+            await addBotMessage("Configuração de disponibilidade/planejamento para todos os professores concluída.");
+            await mostrarTabelaProfessoresCadastrados();
+        }
+
+
+        async function exibirGradeDisponibilidadeParaProfessor(professor) {
+            availabilityGridContainer.innerHTML = ''; 
+            availabilityGridContainer.classList.remove('hidden');
+
+
+            const table = document.createElement('table');
+            table.className = 'availability-grid';
+
+
+            const thead = table.createTHead();
+            const headerRow = thead.insertRow();
+            const thHorario = document.createElement('th');
+            thHorario.textContent = 'Horário';
+            headerRow.appendChild(thHorario);
+            diasDaSemana.forEach(dia => {
+                const th = document.createElement('th');
+                th.textContent = dia;
+                headerRow.appendChild(th);
+            });
+
+
+            const tbody = table.createTBody();
+            let horaAtualMinutos = parseHoraParaMinutos(userData.horarioInicioAulas);
+            const maxAulasNoTurno = Object.values(userData.horarioFinal).reduce((max, turma) => Math.max(max, turma.aulasDiarias), 0) || 5;
+
+
+            if (!professor.gradeDisponibilidade) professor.gradeDisponibilidade = {}; // Inicializa se não existir
+
+
+            for (let i = 0; i < maxAulasNoTurno; i++) {
+                const inicioAula = formatarMinutosParaHora(horaAtualMinutos);
+                const fimAula = adicionarMinutosAHora(inicioAula, userData.duracaoAulaMinutos);
+                const row = tbody.insertRow();
+                const cellHorario = row.insertCell();
+                cellHorario.innerHTML = `<div>${inicioAula}</div><div>${fimAula}</div>`;
+
+
+                diasDaSemana.forEach(dia => {
+                    if (!professor.gradeDisponibilidade[dia]) {
+                        professor.gradeDisponibilidade[dia] = new Array(maxAulasNoTurno).fill("D");
+                    }
+                    const status = professor.gradeDisponibilidade[dia][i] || "D";
+                    const cell = row.insertCell();
+                    cell.textContent = status;
+                    cell.classList.add(`status-${status}`);
+                    cell.dataset.dia = dia;
+                    cell.dataset.slot = i;
+                    cell.onclick = () => handleCellClick(dia, i, cell, professor);
+                });
+
+
+                horaAtualMinutos += userData.duracaoAulaMinutos;
+                const intervaloAposEstaAula = userData.intervalos.find(intervalo => intervalo.aposAula === (i + 1));
+                if (intervaloAposEstaAula) {
+                    const intRow = tbody.insertRow();
+                    const intCell = intRow.insertCell();
+                    intCell.colSpan = diasDaSemana.length + 1;
+                    intCell.classList.add('interval-row');
+                    const inicioIntervalo = formatarMinutosParaHora(horaAtualMinutos);
+                    const fimIntervalo = adicionarMinutosAHora(inicioIntervalo, intervaloAposEstaAula.duracaoMinutos);
+                    intCell.textContent = `INTERVALO (${intervaloAposEstaAula.duracaoMinutos} min)`;
+                    horaAtualMinutos += intervaloAposEstaAula.duracaoMinutos;
+                }
+            }
+            availabilityGridContainer.appendChild(table);
+            
+            const saveButton = document.createElement('button');
+            saveButton.textContent = `Salvar Disponibilidade para ${professor.nome}`;
+            saveButton.className = 'option-button button-highlight-conclude mt-4';
+            saveButton.onclick = () => handleUserInput("SALVAR_GRADE_PROFESSOR");
+            availabilityGridContainer.appendChild(saveButton);
+             await addBotMessage(`Clique nas células para alterar entre D (Disponível), P (Planejamento), ND (Não Disponível) para o professor <b>${professor.nome}</b>. Depois clique em Salvar.`, 0, true);
+        }
+        
+        async function exibirGradeParaFixarDisciplinas(turma) {
+             availabilityGridContainer.innerHTML = ''; // Limpa a área
+            availabilityGridContainer.classList.remove('hidden');
+            
+            const table = document.createElement('table');
+            table.className = 'fixed-schedule-grid';
+
+
+            const thead = table.createTHead();
+            const headerRow = thead.insertRow();
+            const thHorario = document.createElement('th');
+            thHorario.textContent = 'Período';
+            headerRow.appendChild(thHorario);
+            diasDaSemana.forEach(dia => {
+                const th = document.createElement('th');
+                th.textContent = dia;
+                headerRow.appendChild(th);
+            });
+
+
+            const tbody = table.createTBody();
+            for (let i = 0; i < turma.aulasDiarias; i++) {
+                const row = tbody.insertRow();
+                const cellHorario = row.insertCell();
+                cellHorario.textContent = `${i + 1}º`;
+
+
+                diasDaSemana.forEach(dia => {
+                    const cell = row.insertCell();
+                    cell.dataset.dia = dia;
+                    cell.dataset.periodo = i;
+                    cell.onclick = () => handleFixarAulaClick(cell, turma);
+                    const aulaFixa = turma.horariosFixos?.find(hf => hf.dia === dia && hf.periodo === i);
+                    if (aulaFixa) {
+                        cell.textContent = aulaFixa.disciplina;
+                        cell.classList.add('fixed-class-cell');
+                    }
+                });
+            }
+
+
+            availabilityGridContainer.appendChild(table);
+
+
+            const saveButton = document.createElement('button');
+            saveButton.textContent = `Salvar Horários Fixos`;
+            saveButton.className = 'option-button button-highlight-save mt-4';
+            saveButton.onclick = () => handleUserInput("SALVAR_HORARIOS_FIXOS");
+            availabilityGridContainer.appendChild(saveButton);
+        }
+
+
+        function handleFixarAulaClick(cell, turma) {
+            if (cell.querySelector('select')) return;
+            
+            const dia = cell.dataset.dia;
+            const periodo = parseInt(cell.dataset.periodo);
+            const disciplinaAtual = cell.textContent;
+            cell.innerHTML = '';
+
+
+            const select = document.createElement('select');
+            select.className = 'w-full bg-transparent border-0 focus:ring-0';
+
+
+            const optionVago = document.createElement('option');
+            optionVago.value = '';
+            optionVago.textContent = '-- Vago --';
+            select.appendChild(optionVago);
+
+
+            turma.disciplinas.forEach(disc => {
+                const option = document.createElement('option');
+                option.value = disc.nome;
+                option.textContent = disc.nome;
+                if (disc.nome === disciplinaAtual) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
+            });
+            
+            select.onchange = () => {
+                const disciplinaSelecionada = select.value;
+                turma.horariosFixos = turma.horariosFixos.filter(hf => hf.dia !== dia || hf.periodo !== periodo);
+
+
+                if (disciplinaSelecionada) {
+                    turma.horariosFixos.push({ disciplina: disciplinaSelecionada, dia, periodo });
+                    cell.textContent = disciplinaSelecionada;
+                    cell.classList.add('fixed-class-cell');
+                } else {
+                    cell.textContent = '';
+                    cell.classList.remove('fixed-class-cell');
+                }
+            };
+            
+            select.onblur = () => {
+                 const aulaFixa = turma.horariosFixos.find(hf => hf.dia === dia && hf.periodo === periodo);
+                 cell.textContent = aulaFixa ? aulaFixa.disciplina : '';
+            };
+
+
+            cell.appendChild(select);
+            select.focus();
+        }
+
+
+        function handleCellClick(dia, slotIndex, cellElement, professor) {
+            const currentStatus = professor.gradeDisponibilidade[dia][slotIndex];
+            let nextStatus;
+            if (currentStatus === "D") nextStatus = "P";
+            else if (currentStatus === "P") nextStatus = "ND";
+            else nextStatus = "D";
+
+
+            professor.gradeDisponibilidade[dia][slotIndex] = nextStatus;
+            cellElement.textContent = nextStatus;
+            cellElement.className = `status-${nextStatus}`;
+        }
+
+
+        async function handleSaveGradeDisponibilidade(professor) {
+            let aulasPlanejamentoCalculadas = 0;
+            for (const dia in professor.gradeDisponibilidade) {
+                professor.gradeDisponibilidade[dia].forEach(status => {
+                    if (status === "P") aulasPlanejamentoCalculadas++;
+                });
+            }
+            professor.aulasSemanaisPlanejamento = aulasPlanejamentoCalculadas;
+            const profIndex = userData.professores.findIndex(p => p.id === professor.id);
+            if (profIndex !== -1) {
+                userData.professores[profIndex] = professor;
+            }
+
+
+            await addBotMessage(`Disponibilidade/Planejamento do(a) professor(a) <b>${professor.nome}</b> salva. Total de aulas de planejamento: ${professor.aulasSemanaisPlanejamento}.`);
+            availabilityGridContainer.innerHTML = ''; 
+            availabilityGridContainer.classList.add('hidden');
+            
+            await addBotMessage("Deseja cadastrar outro professor?", 500, true);
+            showOptions([
+                { text: "Sim", value: "ADD_PROF_SIM" },
+                { text: "Não", value: "ADD_PROF_NAO" }
+            ]);
+            conversationState = 'CONFIRM_ADD_PROFESSOR';
+        }
+
+
+
+
+        async function handleUserInput(input) {
+            const message = input || userInput.value.trim();
+            
+            const palavrasCorrecao = ["corrigir", "alterar", "voltar"];
+            if (typeof message === 'string' && 
+                palavrasCorrecao.includes(message.toLowerCase()) && 
+                conversationState !== 'START' && 
+                conversationState !== 'POST_START_CHOICE' &&
+                conversationState !== 'MENU_DADOS_CARREGADOS' && 
+                conversationState !== 'SHOW_CORRECTION_OPTIONS' ) {
+                previousConversationState = conversationState; 
+                conversationState = 'SHOW_CORRECTION_OPTIONS';
+            }
+
+
+
+
+            if (!input && typeof message === 'string' && message === '' && conversationState !== 'SHOW_CORRECTION_OPTIONS') {
+                 if(optionsContainer.children.length === 0 && availabilityGridContainer.classList.contains('hidden')) return; 
+            }
+
+
+            if (typeof message === 'string' && !input && conversationState !== 'SHOW_CORRECTION_OPTIONS') { 
+                addUserMessage(message);
+            }
+            
+            switch (conversationState) {
+
+
+case 'START':
+    resetCompletoParaLogout();
+    await addBotMessage("Bem-vindo ao Horário Fácil! Sou seu assistente para criar horários escolares.");
+    
+    const hasSavedData = localStorage.getItem(BASE_STORAGE_KEY);
+
+
+    const startupOptions = [
+        {text: "Importar Arquivo (.json)", value: "IMPORTAR_JSON", highlight: "action"},
+        {text: "Começar do Zero", value: "CRIAR_NOVO"}
+    ];
+
+
+    if (hasSavedData) {
+        startupOptions.unshift({
+            text: "Continuar Sessão Anterior", 
+            value: "CARREGAR_SALVO", 
+            highlight: "action"
+        });
+        await addBotMessage("Encontrei dados da última sessão. O que deseja fazer?", 500, true);
+    } else {
+        await addBotMessage("Como deseja começar?", 500, true);
+    }
+    
+    showOptions(startupOptions);
+    conversationState = 'POST_START_CHOICE';
+    break;
+
+
+case 'POST_START_CHOICE': {
+    clearOptions();
+    fileImportContainer.classList.add('hidden'); 
+    
+    if(message === "CARREGAR_SALVO") {
+        if(carregarHorarioDoLocalStorage()){
+            await addBotMessage("Dados da sessão anterior carregados com sucesso!");
+            await addBotMessage("O que você gostaria de fazer?", 500, true);
+            showOptions([
+                {text: "Visualizar Horário (se gerado)", value: "VISUALIZAR_CARREGADO", highlight: "action"},
+                {text: "Continuar Edição", value: "CONTINUAR_EDICAO_CARREGADO", highlight: "action"},
+                {text: "Gerar Novo Horário (com dados atuais)", value: "GERAR_COM_DADOS_CARREGADOS"},
+            ]);
+            conversationState = 'MENU_DADOS_CARREGADOS';
+        } else {
+            await addBotMessage("Não foi possível carregar os dados. Vamos começar um novo.");
+            const currentYear = new Date().getFullYear();
+            const yearOptions = [
+                { text: `${currentYear - 1}`, value: `${currentYear - 1}` },
+                { text: `${currentYear}`, value: `${currentYear}` },
+                { text: `${currentYear + 1}`, value: `${currentYear + 1}` }
+            ];
+            await addBotMessage("Para qual ano de referência você deseja gerar o horário?", 500, true);
+            showOptions(yearOptions);
+            conversationState = 'AWAITING_ANO_REFERENCIA';
+        }
+
+
+    } else if (message === "IMPORTAR_JSON") {
+        await addBotMessage("Por favor, selecione o arquivo .json com os dados do horário.", 500, true);
+        fileImportContainer.classList.remove('hidden');
+        jsonFileInput.value = ''; 
+        jsonFileInput.onchange = handleJsonFileImport;
+
+
+    } else { // CRIAR_NOVO
+        await addBotMessage("Ok, vamos começar do zero.");
+        resetarDadosParaNovoHorario();
+        
+        const currentYear = new Date().getFullYear();
+        const yearOptions = [
+            { text: `${currentYear - 1}`, value: `${currentYear - 1}` },
+            { text: `${currentYear}`, value: `${currentYear}` },
+            { text: `${currentYear + 1}`, value: `${currentYear + 1}` }
+        ];
+        
+        await addBotMessage("Para qual ano de referência você deseja gerar o horário?", 500, true);
+        showOptions(yearOptions);
+        conversationState = 'AWAITING_ANO_REFERENCIA';
+    }
+    break;
+}
+                case 'MENU_DADOS_CARREGADOS':
+                    clearOptions();
+                    if (message === "VISUALIZAR_CARREGADO") {
+                        if (userData.horarioGerado && (userData.horarioGerado.size > 0 || Object.keys(userData.horarioGerado).length > 0)) {
+                            if (!(userData.horarioGerado instanceof Map)) {
+                                userData.horarioGerado = new Map(Object.entries(userData.horarioGerado));
+                            }
+                            await mostrarHorarioGerado(); 
+                        } else {
+                            await addBotMessage("Ainda não há um horário gerado para visualizar. Continue a edição ou gere um novo horário.");
+                            showOptions([
+                                {text: "Continuar Edição", value: "CONTINUAR_EDICAO_CARREGADO", highlight: "action"},
+                                {text: "Gerar Novo Horário (com dados atuais)", value: "GERAR_COM_DADOS_CARREGADOS"},
+                            ]);
+                        }
+                    } else if (message === "CONTINUAR_EDICAO_CARREGADO") {
+                        await addBotMessage("Ok, vamos continuar a edição.");
+                        await mostrarTabelaTurmasCadastradas();
+                    } else if (message === "GERAR_COM_DADOS_CARREGADOS") {
+                         await addBotMessage("Ok, vamos prosseguir para a geração do horário com os dados atuais.");
+                        await validarCargaHorariaProfessores();
+                    } else {
+                        await addBotMessage("Opção inválida.");
+                        showOptions([
+                            {text: "Visualizar Horário (se gerado)", value: "VISUALIZAR_CARREGADO", highlight: "action"},
+                            {text: "Continuar Edição", value: "CONTINUAR_EDICAO_CARREGADO", highlight: "action"},
+                            {text: "Gerar Novo Horário (com dados atuais)", value: "GERAR_COM_DADOS_CARREGADOS"},
+                        ]);
+                    }
+                    break;
+
+
+                case 'SHOW_CORRECTION_OPTIONS':
+                     await addBotMessage("O que você gostaria de corrigir/alterar?", 0, true);
+                     showOptions([
+                        {text: "Configurações da Escola (Ano, Turno, etc.)", value: "CORRIGIR_ESCOLA_GLOBAL"},
+                        {text: "Cadastro de Turmas", value: "CORRIGIR_TURMAS_GLOBAL"},
+                        {text: "Disciplinas das Turmas", value: "CORRIGIR_DISCIPLINAS_GLOBAL"},
+                        {text: "Cadastro de Professores/Disponibilidade", value: "CORRIGIR_PROFESSORES_GLOBAL"},
+                        {text: "Relacionamento Professor-Disciplina", value: "CORRIGIR_RELACIONAMENTO_GLOBAL"},
+                        {text: "Cancelar Correção", value: "CANCELAR_CORRECAO"}
+                     ]);
+                     conversationState = 'HANDLE_CORRECTION_CHOICE';
+                     break;
+
+
+case 'HANDLE_CORRECTION_CHOICE': {
+    clearOptions();
+
+
+    if (message === "CORRIGIR_RELACIONAMENTO_GLOBAL") {
+        await addBotMessage("Ok, vamos iniciar o fluxo para reatribuir disciplinas.");
+
+
+        const sobrecargaInfo = tempData.professoresSobrecarregados || [];
+
+
+        if (sobrecargaInfo.length > 0) {
+             await addBotMessage("Qual professor sobrecarregado você deseja corrigir primeiro?", 0, true);
+             const options = sobrecargaInfo.map(p => ({ text: `Corrigir ${p.nome}`, value: p.nome }));
+             showOptions(options);
+             conversationState = 'REATRIBUIR_SELECIONAR_PROFESSOR_SOBRECARREGADO';
+        } else {
+            await addBotMessage("Não encontrei informações de sobrecarga. Reiniciando o relacionamento do zero.");
+            await iniciarRelacionamentoProfessorDisciplina();
+        }
+
+
+    } else if (message === "CORRIGIR_PROFESSORES_TABELA") {
+        await addBotMessage("Ok, vamos para a tela de Professores para você ajustar as disponibilidades.");
+        await mostrarTabelaProfessoresCadastrados();
+
+
+    } else {
+         await addBotMessage("Opção inválida ou fluxo não implementado. Retornando...");
+         await mostrarTabelaProfessoresCadastrados();
+    }
+    break;
+}
+                case 'AWAITING_ANO_REFERENCIA':
+                    if (!/^\d{4}$/.test(message)) {
+                        await addBotMessage("Por favor, insira um ano válido com 4 dígitos (Ex: 2025).");
+                    } else {
+                        userData.anoReferencia = message;
+                        await addBotMessage(`Ano de referência definido: ${userData.anoReferencia}.`);
+                        await addBotMessage("Qual a modalidade de ensino?", 500, true);
+                         showOptions([
+                            { text: "Ensino Fundamental", value: "FUNDAMENTAL" },
+                            { text: "Ensino Médio", value: "MEDIO" },
+                        ]);
+                        conversationState = 'AWAITING_NIVEL_ENSINO';
+                    }
+                    break;
+                case 'AWAITING_TURNO': {
+    clearOptions();
+    userData.turno = message; 
+    await addBotMessage(`Turno selecionado: ${message}.`);
+    
+    let timeSlots = [];
+    switch (userData.turno.toUpperCase()) {
+        case 'MANHA':
+        case 'INTEGRAL':
+            timeSlots = generateTimeSlots(7, 9, 15);
+            break;
+        case 'TARDE':
+        case 'TARDE - NOITE':
+            timeSlots = generateTimeSlots(13, 15, 15);
+            break;
+        case 'NOITE':
+            timeSlots = generateTimeSlots(18, 20, 15);
+            break;
+    }
+
+
+    if (timeSlots.length > 0) {
+        const timeOptions = timeSlots.map(time => ({ text: time, value: time }));
+        await addBotMessage("Qual o horário de <b>início</b> das aulas neste turno?", 500, true);
+        showOptions(timeOptions);
+    } else {
+        await addBotMessage("Qual o horário de <b>início</b> das aulas neste turno? (Ex: 07:30)", 500, true);
+    }
+    
+    conversationState = 'AWAITING_HORARIO_INICIO_AULAS';
+    break;
+}
+case 'AWAITING_HORARIO_INICIO_AULAS': {
+    userData.horarioInicioAulas = message;
+    await addBotMessage(`Horário de início: ${userData.horarioInicioAulas}.`);
+    
+    const duracaoOptions = [
+        { text: "40 min", value: "40" },
+        { text: "45 min", value: "45" },
+        { text: "50 min", value: "50" },
+        { text: "55 min", value: "55" },
+        { text: "60 min", value: "60" }
+    ];
+
+
+    await addBotMessage("Qual a duração de cada aula em minutos?", 500, true);
+    showOptions(duracaoOptions);
+    conversationState = 'AWAITING_DURACAO_AULA';
+    break;
+}
+case 'AWAITING_DURACAO_AULA': {
+    const duracao = parseInt(message);
+
+
+    if (isNaN(duracao) || duracao <= 0) {
+        await addBotMessage("Opção de duração inválida. Por favor, tente novamente.");
+        
+        const duracaoOptions = [
+            { text: "40 min", value: "40" }, { text: "45 min", value: "45" },
+            { text: "50 min", value: "50" }, { text: "55 min", value: "55" },
+            { text: "60 min", value: "60" }
+        ];
+        showOptions(duracaoOptions);
+
+
+    } else {
+        userData.duracaoAulaMinutos = duracao;
+        await addBotMessage(`Duração da aula definida para ${duracao} minutos.`);
+        
+        const intervaloOptions = [
+            { text: "Nenhum", value: "0" }, { text: "1", value: "1" },
+            { text: "2", value: "2" }, { text: "3", value: "3" },
+            { text: "4", value: "4" }, { text: "5", value: "5" }
+        ];
+
+
+        await addBotMessage("Quantos intervalos haverá neste turno?", 500, true);
+        showOptions(intervaloOptions);
+        conversationState = 'AWAITING_QTD_INTERVALOS';
+    }
+    break;
+}
+
+
+case 'AWAITING_QTD_INTERVALOS': {
+    const qtdIntervalos = parseInt(message);
+    if (isNaN(qtdIntervalos) || qtdIntervalos < 0 || qtdIntervalos > 5) {
+        await addBotMessage("Por favor, selecione uma opção de 0 a 5.");
+        const intervaloOptions = [
+            { text: "Nenhum", value: "0" }, { text: "1", value: "1" },
+            { text: "2", value: "2" }, { text: "3", value: "3" },
+            { text: "4", value: "4" }, { text: "5", value: "5" }
+        ];
+        showOptions(intervaloOptions);
+        break; 
+    }
+
+
+    currentQtdIntervalos = qtdIntervalos;
+    userData.intervalos = []; 
+    currentIntervaloIndex = 0;
+    
+    if (currentQtdIntervalos > 0) {
+        const duracaoIntervaloOptions = [];
+        for (let i = 5; i <= 90; i += 5) {
+            duracaoIntervaloOptions.push({ text: `${i} min`, value: `${i}` });
+        }
+
+
+        await addBotMessage(`Qual a duração do ${currentIntervaloIndex + 1}º intervalo?`, 500, true);
+        showOptions(duracaoIntervaloOptions);
+        conversationState = 'AWAITING_DURACAO_INTERVALO';
+
+
+    } else {
+        await addBotMessage("Nenhum intervalo configurado.");
+        await addBotMessage(`<b>Resumo da Configuração da Escola:</b><br>Ano: ${userData.anoReferencia}.<br>Nível: ${userData.nivelEnsino}<br>Turno: ${userData.turno}.<br>Início: ${userData.horarioInicioAulas}.<br>Duração Aula: ${userData.duracaoAulaMinutos} min.<br>Intervalos: Nenhum.<br>Deseja confirmar ou corrigir?`, 500, true);
+        showOptions([
+            {text: "Confirmar e ir para Cadastro de Turmas", value: "CONFIRMAR_CONFIG_ESCOLA_PROSSEGUIR", highlight: "conclude"},
+            {text: "Corrigir Configurações da Escola", value: "CORRIGIR_CONFIG_ESCOLA", highlight: "correct"}
+        ]);
+        conversationState = 'CONFIRMAR_CONFIG_ESCOLA';
+    }
+    break;
+}
+case 'AWAITING_DURACAO_INTERVALO': {
+    clearOptions();
+    const duracaoIntervalo = parseInt(message);
+
+
+    if (isNaN(duracaoIntervalo) || duracaoIntervalo <= 0) {
+        await addBotMessage("Duração inválida. Por favor, selecione uma das opções.");
+        const duracaoOptions = [];
+        for (let i = 5; i <= 90; i += 5) {
+            duracaoOptions.push({ text: `${i} min`, value: `${i}` });
+        }
+        showOptions(duracaoOptions);
+        break;
+    } 
+    
+    tempDuracaoIntervalo = duracaoIntervalo;
+    await addBotMessage(`Duração do ${currentIntervaloIndex + 1}º intervalo: ${duracaoIntervalo} min.`);
+    
+    const primeiraTurma = Object.values(userData.horarioFinal)[0];
+    let maxAulasPrevisao = primeiraTurma ? primeiraTurma.aulasDiarias : (userData.turno.toUpperCase().includes('INTEGRAL') || userData.turno.toUpperCase().includes('NOITE') ? 9 : 6);
+
+
+    const posicaoOptions = [];
+    for (let i = 1; i < maxAulasPrevisao; i++) { 
+        posicaoOptions.push({ text: `Após a ${i}ª aula`, value: `${i}` });
+    }
+    
+    await addBotMessage("Após qual aula este intervalo ocorrerá?", 500, true);
+    showOptions(posicaoOptions);
+    conversationState = 'AWAITING_POSICAO_INTERVALO';
+    break;
+}
+
+
+case 'AWAITING_POSICAO_INTERVALO': {
+    clearOptions();
+    const aposAula = parseInt(message);
+
+
+    if (isNaN(aposAula) || aposAula <= 0) {
+        await addBotMessage("Posição inválida. Por favor, selecione uma das opções.");
+    } else {
+        userData.intervalos.push({ duracaoMinutos: tempDuracaoIntervalo, aposAula: aposAula });
+        currentIntervaloIndex++;
+
+
+        if (currentIntervaloIndex < currentQtdIntervalos) {
+            await addBotMessage(`Intervalo ${currentIntervaloIndex} configurado.`);
+            
+            const duracaoIntervaloOptions = [];
+            for (let i = 5; i <= 90; i += 5) {
+                duracaoIntervaloOptions.push({ text: `${i} min`, value: `${i}` });
+            }
+            await addBotMessage(`Qual a duração do ${currentIntervaloIndex + 1}º intervalo?`, 500, true);
+            showOptions(duracaoIntervaloOptions);
+            conversationState = 'AWAITING_DURACAO_INTERVALO';
+        } else {
+            await addBotMessage("Todos os intervalos foram configurados com sucesso.");
+            
+            const resumoIntervalos = userData.intervalos.map((int, idx) => 
+                `${idx + 1}º: ${int.duracaoMinutos} min (após a ${int.aposAula}ª aula)`
+            ).join('<br>');
+
+
+            await addBotMessage(`<b>Resumo da Configuração:</b><br>Ano: ${userData.anoReferencia}<br>Turno: ${userData.turno}<br>Início: ${userData.horarioInicioAulas}<br>Duração/Aula: ${userData.duracaoAulaMinutos} min<br>Intervalos:<br>${resumoIntervalos}`);
+            
+            showOptions([
+                {text: "Confirmar e ir para Cadastro de Turmas", value: "CONFIRMAR_CONFIG_ESCOLA_PROSSEGUIR", highlight: "conclude"},
+                {text: "Corrigir Configurações", value: "CORRIGIR_CONFIG_ESCOLA", highlight: "correct"}
+            ]);
+            conversationState = 'CONFIRMAR_CONFIG_ESCOLA';
+        }
+    }
+    break;
+}
+                case 'AWAITING_NIVEL_ENSINO':
+                    clearOptions();
+                    if (["FUNDAMENTAL", "MEDIO"].includes(message)) {
+                        userData.nivelEnsino = message;
+                         await addBotMessage("Qual o turno das atividades escolares?", 500, true);
+                        showOptions([
+                            {text: "Manhã", value: "MANHA"}, {text: "Tarde", value: "TARDE"}, {text: "Noite", value: "NOITE"},
+                            {text: "Manhã - Tarde", value: "MANHA_TARDE"}, {text: "Tarde - Noite", value: "TARDE_NOITE"},
+                            {text: "Integral", value: "INTEGRAL"}
+                        ]);
+                        conversationState = 'AWAITING_TURNO';
+                    } else {
+                        await addBotMessage("Opção inválida. Por favor, selecione uma das opções abaixo.");
+                         showOptions([
+                            { text: "Ensino Fundamental", value: "FUNDAMENTAL" },
+                            { text: "Ensino Médio", value: "MEDIO" },
+                        ]);
+                    }
+                    break;
+                 
+case 'CONFIRMAR_CONFIG_ESCOLA': {
+    clearOptions();
+
+
+    if (message === "CONFIRMAR_CONFIG_ESCOLA_PROSSEGUIR") {
+        const serieAnoLabel = userData.nivelEnsino === 'FUNDAMENTAL' ? 'Ano' : 'Série';
+        currentSerieAnoParaCadastro = userData.nivelEnsino === 'FUNDAMENTAL' ? '1' : '1';
+        turmasCadastradasNaSerieAnoCount = 0;
+        await addBotMessage(`Ok. Vamos cadastrar as turmas, começando pelo ${currentSerieAnoParaCadastro}º ${serieAnoLabel}.`);
+        
+        await askForQtdTurmas();
+
+
+    } else if (message === "CORRIGIR_CONFIG_ESCOLA") {
+        await addBotMessage("Ok, vamos corrigir as configurações da escola desde o início.");
+        resetarDadosParaNovoHorario(); 
+        
+        const currentYear = new Date().getFullYear();
+        const yearOptions = [
+            { text: `${currentYear - 1}`, value: `${currentYear - 1}` },
+            { text: `${currentYear}`, value: `${currentYear}` },
+            { text: `${currentYear + 1}`, value: `${currentYear + 1}` }
+        ];
+        
+        await addBotMessage("Para qual ano de referência você deseja gerar o horário?", 500, true);
+        showOptions(yearOptions);
+        conversationState = 'AWAITING_ANO_REFERENCIA';
+    }
+    break;
+}
+                 case 'AWAITING_QTD_TURMAS_BASICO': {
+                    const qtd = parseInt(message);
+                    if (isNaN(qtd) || qtd < 1) {
+                        await addBotMessage("Por favor, insira um número válido de turmas (pelo menos 1).");
+                        await askForQtdTurmas();
+                        break;
+                    }
+
+
+                    totalTurmasParaCadastrarNaSerieAno = qtd;
+                    const serieAnoLabel = (userData.nivelEnsino === 'FUNDAMENTAL') ? 'Ano' : 'Série';
+
+
+                    if (totalTurmasParaCadastrarNaSerieAno > 0) {
+                        await addBotMessage(`Qual a identificação da ${turmasCadastradasNaSerieAnoCount + 1}ª turma do ${currentSerieAnoParaCadastro}º ${serieAnoLabel}? (Ex: A, B, Integral)`, 500, true);
+                        conversationState = 'CADASTRO_TURMA_BASICO_ID_LOOP';
+                    } else { // Should not be reached due to validation above, but as a fallback
+                        if (userData.nivelEnsino === 'FUNDAMENTAL') {
+                            await finalizarConfiguracaoTurmaFundamentalAtual();
+                        } else { 
+                            await finalizarConfiguracaoTurmaMedioAtual();
+                        }
+                    }
+                    break;
+                }
+
+
+case 'CADASTRO_TURMA_BASICO_ID_LOOP': {
+    const idTurma = message.toUpperCase();
+    const serieAnoLabel = userData.nivelEnsino === 'FUNDAMENTAL' ? 'Ano' : 'Série';
+    const prefix = userData.nivelEnsino.substring(0,1);
+    
+    currentTurmaKeyAulas = `${prefix}-${currentSerieAnoParaCadastro}-${idTurma}`; 
+    
+    if (userData.horarioFinal[currentTurmaKeyAulas]) {
+        await addBotMessage(`ERRO: Já existe uma turma com esta identificação (${currentSerieAnoParaCadastro}º ${serieAnoLabel} ${idTurma}). Por favor, insira uma identificação diferente.`, 500, true);
+        break; 
+    }
+    
+    const displayText = `${currentSerieAnoParaCadastro}º ${serieAnoLabel} ${idTurma}`;
+    
+    userData.horarioFinal[currentTurmaKeyAulas] = {
+        key: currentTurmaKeyAulas,
+        displayText: displayText,
+        type: userData.nivelEnsino,
+        serieAno: currentSerieAnoParaCadastro,
+        id: idTurma,
+        aulasDiarias: 0, 
+        aulasSemanais: 0, 
+        disciplinas: [],
+        horariosFixos: []
+    };
+
+
+    await addBotMessage(`Turma '${displayText}' cadastrada.`);
+    currentTurmaConfig = userData.horarioFinal[currentTurmaKeyAulas];
+
+
+    let maxAulas = 6;
+    const turno = userData.turno.toUpperCase();
+
+
+    if (turno === 'INTEGRAL' || turno === 'MANHA-TARDE' || turno === 'TARDE-NOITE') {
+        maxAulas = 10;
+    }
+
+
+    const qtdAulasOptions = [];
+    for (let i = 1; i <= maxAulas; i++) {
+        qtdAulasOptions.push({ text: `${i}`, value: `${i}` });
+    }
+    
+    await addBotMessage(`Quantas aulas DIÁRIAS esta turma (${displayText}) terá?`, 500, true);
+    showOptions(qtdAulasOptions);
+    conversationState = 'AWAITING_AULAS_DIARIAS';
+    break;
+}
+                case 'AWAITING_AULAS_DIARIAS': {
+                    const aulasDiarias = parseInt(message);
+                    if (isNaN(aulasDiarias) || aulasDiarias <= 0 || aulasDiarias > 10) {
+                        await addBotMessage("Por favor, insira um número válido de aulas diárias (entre 1 e 10).");
+                        break;
+                    }
+                    
+                    const turmaConfig = currentTurmaConfig || userData.horarioFinal[currentTurmaKeyAulas];
+                    if (!turmaConfig) {
+                        await addBotMessage("Ocorreu um erro interno (turma não encontrada). Tente corrigir o processo.");
+                        await handleUserInput("corrigir");
+                        break;
+                    }
+
+
+                    turmaConfig.aulasDiarias = aulasDiarias;
+                    turmaConfig.aulasSemanais = aulasDiarias * 5;
+                    await addBotMessage(`Aulas diárias: ${aulasDiarias}. Aulas semanais calculadas: ${turmaConfig.aulasSemanais}.`);
+
+
+                    const nivel = turmaConfig.type;
+                     if (nivel === 'FUNDAMENTAL') {
+                        await finalizarConfiguracaoTurmaFundamentalAtual();
+                    } else { // MEDIO
+                        await finalizarConfiguracaoTurmaMedioAtual();
+                    }
+                    break;
+                }
+                case 'CONFERIR_TURMAS_CADASTRADAS_ACAO':
+                    clearOptions();
+                    if (message === "PROSSEGUIR_DISCIPLINAS_TABELA") {
+                        await iniciarCadastroDisciplinas();
+                    } else if (message === "EDITAR_AULAS_TURMA_SELECIONAR_TABELA") {
+                        const turmasEditaveis = Object.values(userData.horarioFinal);
+                        if (turmasEditaveis.length > 0) {
+                            await addBotMessage("Qual turma deseja editar as aulas?", 500, true);
+                            const turmaOptions = turmasEditaveis.map(t => ({text: t.displayText, value: t.key}));
+                            showOptions(turmaOptions);
+                            conversationState = 'EDITAR_AULAS_TURMA_SELECIONADA';
+                        } else {
+                            await addBotMessage("Nenhuma turma para editar.");
+                            await mostrarTabelaTurmasCadastradas();
+                        }
+                    } else if (message === "CORRIGIR_TURMAS_GLOBAL") {
+                        await addBotMessage(`Ok, vamos corrigir o cadastro de turmas.`);
+                        userData.horarioFinal = {};
+                        userData.horarioGerado = {};
+                        const serieAnoLabel = userData.nivelEnsino === 'FUNDAMENTAL' ? 'Ano' : 'Série';
+                        currentSerieAnoParaCadastro = userData.nivelEnsino === 'FUNDAMENTAL' ? '1' : '1';
+                        turmasCadastradasNaSerieAnoCount = 0;
+                        await askForQtdTurmas();
+                    } else {
+                         await addBotMessage("Opção inválida. Por favor, escolha uma das opções.");
+                         await mostrarTabelaTurmasCadastradas();
+                    }
+                    break;
+
+
+case 'EDITAR_AULAS_TURMA_SELECIONADA': {
+    clearOptions();
+    const turmaKey = message;
+    const turmaSelecionada = userData.horarioFinal[turmaKey];
+
+
+    if (turmaSelecionada) {
+        currentTurmaConfig = turmaSelecionada;
+        turmaKeyParaEditarAulas = turmaKey;
+        
+        await addBotMessage(`A turma <b>${turmaSelecionada.displayText}</b> possui atualmente <b>${turmaSelecionada.aulasDiarias}</b> aulas diárias. Qual a nova quantidade?`, 0, true);
+        
+        let maxAulas = 6;
+        const turno = userData.turno.toUpperCase();
+        if (turno === 'INTEGRAL' || turno === 'MANHA-TARDE' || turno === 'TARDE-NOITE') {
+            maxAulas = 10;
+        }
+        
+        const qtdAulasOptions = [];
+        for (let i = 1; i <= maxAulas; i++) {
+            qtdAulasOptions.push({ text: `${i}`, value: `${i}` });
+        }
+        
+        showOptions(qtdAulasOptions);
+        conversationState = 'AWAITING_NOVA_QTD_AULAS_TURMA';
+        
+    } else {
+        await addBotMessage("Turma não encontrada. Por favor, tente novamente.");
+        await mostrarTabelaTurmasCadastradas();
+    }
+    break;
+}
+
+
+case 'AWAITING_NOVA_QTD_AULAS_TURMA': {
+    clearOptions();
+    const novaQtdAulas = parseInt(message);
+
+
+    if (isNaN(novaQtdAulas) || novaQtdAulas <= 0) {
+        await addBotMessage("Quantidade inválida.");
+    } else {
+        const turmaEditada = userData.horarioFinal[turmaKeyParaEditarAulas];
+        turmaEditada.aulasDiarias = novaQtdAulas;
+        turmaEditada.aulasSemanais = novaQtdAulas * 5;
+        await addBotMessage(`A quantidade de aulas da turma <b>${turmaEditada.displayText}</b> foi atualizada para <b>${novaQtdAulas}</b> aulas diárias.`);
+    }
+    
+    turmaKeyParaEditarAulas = null;
+    await mostrarTabelaTurmasCadastradas();
+    break;
+}
+case 'AWAITING_DISCIPLINA_TURMA_ACTION': {
+    clearOptions();
+
+
+    if (message === 'ADD_DISC_LISTA') {
+        await addBotMessage("Selecione as disciplinas que esta turma terá:", 0, true);
+        const lista = (currentTurmaConfig.type === 'MEDIO') ? disciplinasEnsinoMedio : disciplinasEnsinoFundamental;
+        const options = lista.map(d => ({ text: d, value: d }));
+        const acoesExtras = [{ text: "Cadastrar Nova Disciplina (não está na lista)", value: "ADD_DISC_NOVA_DURANTE_SELECAO" }];
+        showOptions(options, true, acoesExtras); 
+        conversationState = 'AWAITING_DISCIPLINA_SELECTION_LISTA';
+    
+    } else if (message === 'ADD_DISC_NOVA') { 
+        await addBotMessage("Qual o nome da nova disciplina que você deseja cadastrar para esta turma? (Pode adicionar várias, separadas por vírgula)", 0, true);
+        conversationState = 'AWAITING_NOME_NOVA_DISCIPLINA_TURMA';
+
+
+    } else if (message === 'IMPORT_DISC_TURMA') { 
+        await addBotMessage("De qual turma você deseja importar as disciplinas?", 0, true);
+        const turmasParaImportar = allTurmasParaDisciplinas.filter(t => t.key !== currentTurmaConfig.key && t.disciplinas && t.disciplinas.length > 0);
+        const turmaOptions = turmasParaImportar.map(t => ({ text: t.displayText, value: t.key }));
+        showOptions(turmaOptions);
+        conversationState = 'AWAITING_TURMA_SELECTION_FOR_IMPORT';
+
+
+    } else if (message.startsWith('PROMPT_REMOVE_DISC_')) {
+        handleUserInput(message);
+
+
+    } else if (message === 'FIXAR_HORARIOS_DISC') {
+        await addBotMessage("Selecione as disciplinas para cada horário desejado. Deixe em branco para não fixar.", 0, true);
+        await exibirGradeParaFixarDisciplinas(currentTurmaConfig);
+        conversationState = 'FIXANDO_HORARIOS';
+
+
+    } else if (message === 'CONCLUIR_DISC_TURMA') {
+        let somaAulasDisciplinas = 0;
+        currentTurmaConfig.disciplinas.forEach(d => somaAulasDisciplinas += d.qtdAulasSemanais);
+        
+        if (somaAulasDisciplinas !== currentTurmaConfig.aulasSemanais) {
+            let diff = currentTurmaConfig.aulasSemanais - somaAulasDisciplinas;
+            await addBotMessage(`ATENÇÃO: A soma das aulas das disciplinas (${somaAulasDisciplinas}) é diferente do total de aulas semanais da turma (${currentTurmaConfig.aulasSemanais}).<br>Diferença: ${diff} aulas.`, 500, true);
+            showOptions([ 
+                {text: "Ajustar Disciplinas Desta Turma", value: "AJUSTAR_DISCIPLINAS_TURMA_ATUAL", highlight:"correct"}, 
+                {text: "Continuar Assim Mesmo", value: "CONTINUAR_APESAR_DIF_AULAS", highlight:"action"} 
+            ]);
+            conversationState = 'VALIDAR_SOMA_AULAS_DISCIPLINAS_TURMA';
+        } else {
+            await addBotMessage("Soma das aulas das disciplinas confere com o total da turma.");
+            await addBotMessage(`Disciplinas para a turma <b>${currentTurmaConfig.displayText}</b> finalizadas.`);
+            currentTurmaParaDisciplinaIndex++;
+            await proximaTurmaParaDisciplinas();
+        }
+    } else {
+        await addBotMessage("Opção não reconhecida, mostrando o menu novamente.");
+        await mostrarMenuDisciplinasDaTurmaAtual();
+    }
+    break;
+}           
+               
+case 'VALIDAR_SOMA_AULAS_DISCIPLINAS_TURMA': {
+    clearOptions();
+    if (message === 'AJUSTAR_DISCIPLINAS_TURMA_ATUAL') {
+        await addBotMessage("Ok, vamos ajustar as disciplinas desta turma novamente.");
+        await mostrarMenuDisciplinasDaTurmaAtual();
+    } else if (message === 'CONTINUAR_APESAR_DIF_AULAS') {
+        await addBotMessage(`Ok, ciente da divergência. Disciplinas para a turma <b>${currentTurmaConfig.displayText}</b> finalizadas.`);
+        currentTurmaParaDisciplinaIndex++;
+        await proximaTurmaParaDisciplinas();
+    }
+    break;
+}
+case 'FIXANDO_HORARIOS':
+    if (message === 'SALVAR_HORARIOS_FIXOS') {
+        availabilityGridContainer.innerHTML = '';
+        availabilityGridContainer.classList.add('hidden');
+        
+        await addBotMessage("Horários fixos salvos com sucesso!");
+        await mostrarMenuDisciplinasDaTurmaAtual();
+    } else {
+        await addBotMessage("Ação não reconhecida. Por favor, salve os horários ou corrija o fluxo.");
+    }
+    break;
+                    case 'AWAITING_TURMA_SELECTION_FOR_IMPORT':
+    clearOptions();
+    const turmaOrigemKey = message;
+    const turmaOrigem = userData.horarioFinal[turmaOrigemKey];
+
+
+    if (turmaOrigem && currentTurmaConfig) {
+        currentTurmaConfig.disciplinas = JSON.parse(JSON.stringify(turmaOrigem.disciplinas));
+        await addBotMessage(`Disciplinas da turma <b>${turmaOrigem.displayText}</b> importadas com sucesso!`);
+    } else {
+        await addBotMessage("Ocorreu um erro ao tentar importar as disciplinas.");
+    }
+
+
+    await mostrarMenuDisciplinasDaTurmaAtual();
+    break;
+                case 'CONFIRMAR_CADASTRO_DISCIPLINAS_CONCLUIDO':
+    clearOptions();
+    if (message === 'PROSSEGUIR_PROFESSORES') {
+        await addBotMessage("Excelente! Vamos agora cadastrar os professores.");
+        currentProfessorConfig = { nome: null, disciplinasMinistra: [], aulasSemanaisSala: 0, aulasSemanaisPlanejamento: 0, gradeDisponibilidade: {} };
+        await addBotMessage("Qual o nome do primeiro professor(a)?", 500, true);
+        conversationState = 'CADASTRO_PROFESSOR_NOME';
+    } else if (message === 'CORRIGIR_DISCIPLINAS') {
+        await addBotMessage("Ok, vamos revisar o cadastro de disciplinas desde o início.");
+        await iniciarCadastroDisciplinas();
+    }
+    break;
+    case 'CADASTRO_PROFESSOR_NOME':
+    if (!message || message.length < 2) {
+        await addBotMessage("Por favor, digite um nome válido para o professor.");
+        break;
+    }
+    currentProfessorConfig.nome = message.toUpperCase();
+    await addBotMessage(`Professor <b>${currentProfessorConfig.nome}</b> cadastrado.`);
+
+
+    const disciplinasCadastradas = new Set();
+    Object.values(userData.horarioFinal).forEach(turma => {
+        if (turma.disciplinas && turma.disciplinas.length > 0) {
+            turma.disciplinas.forEach(disciplina => {
+                disciplinasCadastradas.add(disciplina.nome);
+            });
+        }
+    });
+
+
+    const listaFiltradaDeDisciplinas = Array.from(disciplinasCadastradas);
+
+
+    if (listaFiltradaDeDisciplinas.length === 0) {
+        await addBotMessage("<b>ATENÇÃO:</b> Nenhuma disciplina foi cadastrada em nenhuma turma ainda. Não é possível continuar o cadastro de professores. Por favor, corrija o cadastro de disciplinas primeiro.");
+        showOptions([
+            { text: "Corrigir Cadastro de Disciplinas", value: "CORRIGIR_DISCIPLINAS_GLOBAL", highlight: "correct" }
+        ]);
+        conversationState = 'HANDLE_CORRECTION_CHOICE';
+        break;
+    }
+
+
+    await addBotMessage("Agora, selecione as disciplinas que este(a) professor(a) ministra (somente as cadastradas nas turmas serão exibidas):", 500, true);
+    
+    const options = listaFiltradaDeDisciplinas.map(d => ({ text: d, value: d }));
+    
+    showOptions(options, true);
+    conversationState = 'CADASTRO_PROFESSOR_DISCIPLINAS';
+    break;
+    case 'CADASTRO_PROFESSOR_DISCIPLINAS':
+    clearOptions();
+    const disciplinasSelecionadas = Array.isArray(message) ? message : [message];
+    if (disciplinasSelecionadas.length === 0 || disciplinasSelecionadas[0] === "Nenhuma opção selecionada."){
+         await addBotMessage("Nenhuma disciplina selecionada. Por favor, selecione ao menos uma.");
+         const disciplinasDisponiveis = [...new Set(Object.values(userData.horarioFinal).flatMap(t => t.disciplinas.map(d => d.nome)))];
+         const options = disciplinasDisponiveis.map(d => ({ text: d, value: d }));
+         showOptions(options, true);
+         conversationState = 'CADASTRO_PROFESSOR_DISCIPLINAS';
+         break;
+    }
+
+
+    currentProfessorConfig.disciplinasMinistra = disciplinasSelecionadas;
+    await addBotMessage(`Disciplinas de <b>${currentProfessorConfig.nome}</b>: ${disciplinasSelecionadas.join(', ')}.`);
+    await addBotMessage(`Qual a carga horária total de aulas <b>EM SALA</b> deste professor por semana? (apenas números)`, 500, true);
+    conversationState = 'CADASTRO_PROFESSOR_AULAS_SALA';
+    break;
+      case 'CADASTRO_PROFESSOR_AULAS_SALA': {
+    const aulas = parseInt(message);
+    if (isNaN(aulas) || aulas < 0) {
+        await addBotMessage("Por favor, insira um número válido para a carga horária.", 0, true);
+        break;
+    }
+    
+    currentProfessorConfig.aulasSemanaisSala = aulas;
+    await addBotMessage(`Carga horária de <b>${aulas}</b> aulas/semana definida.`);
+    
+    await addBotMessage(`Agora, configure a grade de disponibilidade e planejamento para <b>${currentProfessorConfig.nome}</b>.`, 500);
+    await exibirGradeDisponibilidadeParaProfessor(currentProfessorConfig);
+    
+    conversationState = 'CONFIGURANDO_GRADE_PROFESSOR'; 
+    break;
+}
+case 'CONFIGURANDO_GRADE_PROFESSOR': {
+    if (message === 'SALVAR_GRADE_PROFESSOR') {
+        let aulasPlanejamentoCalculadas = 0;
+        for (const dia in currentProfessorConfig.gradeDisponibilidade) {
+            currentProfessorConfig.gradeDisponibilidade[dia].forEach(status => {
+                if (status === "P") aulasPlanejamentoCalculadas++;
+            });
+        }
+        currentProfessorConfig.aulasSemanaisPlanejamento = aulasPlanejamentoCalculadas;
+
+
+        userData.professores.push(currentProfessorConfig);
+
+
+        await addBotMessage(`Disponibilidade do(a) professor(a) <b>${currentProfessorConfig.nome}</b> salva.`);
+        
+        availabilityGridContainer.innerHTML = ''; 
+        availabilityGridContainer.classList.add('hidden');
+
+
+        await addBotMessage("Deseja cadastrar outro professor?", 500, true);
+        showOptions([
+            { text: "Sim", value: "ADD_PROF_SIM" },
+            { text: "Não, concluir cadastro", value: "ADD_PROF_NAO", highlight: "conclude" }
+        ]);
+        
+        conversationState = 'CONFIRM_ADD_PROFESSOR';
+
+
+    } else {
+        await addBotMessage("Por favor, clique no botão 'Salvar Disponibilidade' para continuar.");
+    }
+    break;
+}
+    case 'CONFIRM_ADD_PROFESSOR':
+    clearOptions();
+    if (message === 'ADD_PROF_SIM') {
+        currentProfessorConfig = { nome: null, disciplinasMinistra: [], aulasSemanaisSala: 0, aulasSemanaisPlanejamento: 0, gradeDisponibilidade: {} };
+        await addBotMessage("Qual o nome do próximo professor(a)?", 500, true);
+        conversationState = 'CADASTRO_PROFESSOR_NOME';
+    } else { 
+        await addBotMessage("Ok, cadastro de professores finalizado.");
+        await mostrarTabelaProfessoresCadastrados();
+    }
+    break;
+    
+case 'CONFERIR_PROFESSORES_CADASTRADOS_ACAO': {
+    clearOptions();
+    if (message === 'PROSSEGUIR_RELACIONAMENTO_TABELA') {
+        await addBotMessage("Ok, vamos iniciar o relacionamento das disciplinas com os professores.");
+        await iniciarRelacionamentoProfessorDisciplina();
+
+
+    } else if (message === 'CADASTRAR_NOVO_PROFESSOR_TABELA') {
+        currentProfessorConfig = { nome: null, disciplinasMinistra: [], aulasSemanaisSala: 0, aulasSemanaisPlanejamento: 0, gradeDisponibilidade: {} };
+        await addBotMessage("Qual o nome do novo professor(a)?", 500, true);
+        conversationState = 'CADASTRO_PROFESSOR_NOME';
+
+
+    } else if (message === 'CORRIGIR_PROFESSORES_TABELA') {
+        await addBotMessage("Qual professor você deseja editar a disponibilidade?", 0, true);
+        const profOptions = userData.professores.map((prof, index) => ({
+            text: prof.nome,
+            value: `EDIT_PROF_${index}` 
+        }));
+        profOptions.push({ text: "Voltar", value: "CANCELAR_EDICAO_PROF" });
+        showOptions(profOptions);
+        conversationState = 'AWAITING_PROFESSOR_TO_EDIT_SELECTION';
+    }
+    break;
+}
+case 'AWAITING_PROFESSOR_TO_EDIT_SELECTION': {
+    clearOptions();
+    if (message === 'CANCELAR_EDICAO_PROF') {
+        await addBotMessage("Edição cancelada.");
+        await mostrarTabelaProfessoresCadastrados();
+        break;
+    }
+
+
+    if (message.startsWith('EDIT_PROF_')) {
+        const profIndex = parseInt(message.replace('EDIT_PROF_', ''));
+        if (profIndex >= 0 && profIndex < userData.professores.length) {
+            currentProfessorConfig = userData.professores[profIndex];
+            await addBotMessage(`Editando disponibilidade para <b>${currentProfessorConfig.nome}</b>.`);
+            await exibirGradeDisponibilidadeParaProfessor(currentProfessorConfig);
+            
+            conversationState = 'CONFIGURANDO_GRADE_PROFESSOR_EDICAO'; 
+        } else {
+            await addBotMessage("Professor inválido selecionado. Tente novamente.");
+            await mostrarTabelaProfessoresCadastrados();
+        }
+    }
+    break;
+}
+case 'CONFIGURANDO_GRADE_PROFESSOR_EDICAO': {
+    if (message === 'SALVAR_GRADE_PROFESSOR') {
+        const profIndex = userData.professores.findIndex(p => p.nome === currentProfessorConfig.nome);
+        if (profIndex !== -1) {
+            let aulasPlanejamentoCalculadas = 0;
+            for (const dia in currentProfessorConfig.gradeDisponibilidade) {
+                currentProfessorConfig.gradeDisponibilidade[dia].forEach(status => {
+                    if (status === "P") aulasPlanejamentoCalculadas++;
+                });
+            }
+            currentProfessorConfig.aulasSemanaisPlanejamento = aulasPlanejamentoCalculadas;
+            userData.professores[profIndex] = currentProfessorConfig;
+        }
+
+
+        await addBotMessage(`Disponibilidade de <b>${currentProfessorConfig.nome}</b> atualizada com sucesso!`);
+        
+        availabilityGridContainer.innerHTML = ''; 
+        availabilityGridContainer.classList.add('hidden');
+        
+        await addBotMessage("O que deseja fazer agora?", 0, true);
+        showOptions([
+            { text: "Prosseguir e Gerar Horário", value: "PROSSEGUIR_GERACAO_APOS_EDICAO", highlight: "conclude" },
+            { text: "Editar Outro Professor", value: "EDITAR_OUTRO_PROFESSOR", highlight: "action" },
+            { text: "Voltar para a Lista de Professores", value: "VOLTAR_MENU_PROFESSORES" }
+        ]);
+        
+        conversationState = 'POST_PROFESSOR_EDIT_ACTION';
+    } else {
+        await addBotMessage("Por favor, clique no botão 'Salvar Disponibilidade' para continuar.");
+    }
+    break;
+}
+case 'REATRIBUIR_INICIAR_FLUXO': {
+    clearOptions();
+    await addBotMessage("Qual disciplina você deseja reatribuir para outro professor?", 0, true);
+
+
+    const disciplinasAtribuidas = new Set();
+    Object.values(userData.horarioFinal).forEach(turma => {
+        turma.disciplinas.forEach(disc => disciplinasAtribuidas.add(disc.nome));
+    });
+
+
+    const options = Array.from(disciplinasAtribuidas).map(d => ({ text: d, value: d }));
+    showOptions(options);
+    conversationState = 'REATRIBUIR_SELECIONAR_DISCIPLINA';
+    break;
+}
+
+
+case 'REATRIBUIR_SELECIONAR_DISCIPLINA': {
+    clearOptions();
+    const disciplinaParaReatribuir = message;
+    
+    const professoresCompativeis = userData.professores.filter(
+        p => p.disciplinasMinistra.includes(disciplinaParaReatribuir)
+    );
+
+
+    if (professoresCompativeis.length <= 1) {
+        await addBotMessage(`Não há outros professores cadastrados que possam ministrar <b>${disciplinaParaReatribuir}</b>. Cadastre um novo professor primeiro.`);
+        await mostrarTabelaProfessoresCadastrados();
+        break;
+    }
+
+
+    await addBotMessage(`Atualmente, todas as turmas de <b>${disciplinaParaReatribuir}</b> estão com um professor. Para qual professor você deseja mover *algumas* turmas de ${disciplinaParaReatribuir}?`, 0, true);
+    
+    const options = professoresCompativeis.map(p => ({ text: p.nome, value: p.nome }));
+    showOptions(options);
+    
+    tempData.disciplinaParaReatribuir = disciplinaParaReatribuir;
+    conversationState = 'REATRIBUIR_SELECIONAR_NOVO_PROFESSOR';
+    break;
+}
+
+
+case 'REATRIBUIR_SELECIONAR_NOVO_PROFESSOR': {
+    clearOptions();
+    const novoProfessor = message;
+    const disciplina = tempData.disciplinaParaReatribuir;
+
+
+    const turmasComDisciplina = Object.values(userData.horarioFinal).filter(
+        t => t.disciplinas.some(d => d.nome === disciplina)
+    );
+
+
+    await addBotMessage(`Quais turmas de <b>${disciplina}</b> devem ser atribuídas ao professor(a) <b>${novoProfessor}</b>?`, 0, true);
+    
+    const options = turmasComDisciplina.map(t => ({ text: t.displayText, value: t.key }));
+    showOptions(options, true);
+
+
+    tempData.novoProfessorParaReatribuir = novoProfessor;
+    conversationState = 'REATRIBUIR_CONFIRMAR_TURMAS';
+    break;
+}
+case 'POST_PROFESSOR_EDIT_ACTION': {
+    clearOptions();
+    if (message === 'PROSSEGUIR_GERACAO_APOS_EDICAO') {
+        await addBotMessage("Ok. Com as novas disponibilidades, vamos para a tela de geração.");
+        await validarCargaHorariaProfessores();
+
+
+    } else if (message === 'EDITAR_OUTRO_PROFESSOR') {
+        await addBotMessage("Certo. Qual outro professor deseja editar?");
+        const profOptions = userData.professores.map((prof, index) => ({
+            text: prof.nome,
+            value: `EDIT_PROF_${index}` 
+        }));
+        profOptions.push({ text: "Cancelar", value: "CANCELAR_EDICAO_PROF" });
+        showOptions(profOptions);
+        conversationState = 'AWAITING_PROFESSOR_TO_EDIT_SELECTION';
+
+
+    } else if (message === 'VOLTAR_MENU_PROFESSORES') {
+        await addBotMessage("Ok, retornando ao menu de professores.");
+        await mostrarTabelaProfessoresCadastrados();
+    }
+    break;
+}
+case 'RELACIONAMENTO_SELECIONAR_PROFESSOR': {
+    clearOptions();
+    const nomeProfessorSelecionado = message;
+    let turmaKey, discIndex, disciplinaNome;
+
+
+    if (previousConversationState === 'EDITING_REL') {
+        turmaKey = currentTurmaConfig.key;
+        discIndex = currentDisciplinaParaConfigurar.disciplinaIndexParaRelacionamento;
+    } else {
+        turmaKey = currentDisciplinaParaConfigurar.turmaKeyParaRelacionamento;
+        discIndex = currentDisciplinaParaConfigurar.disciplinaIndexParaRelacionamento;
+    }
+
+
+    if (nomeProfessorSelecionado === 'PULAR_DISCIPLINA_REL') {
+        await addBotMessage("Ok, a disciplina ficará sem professor por enquanto.");
+        userData.horarioFinal[turmaKey].disciplinas[discIndex].professorNome = null;
+    } else {
+        if (userData.horarioFinal[turmaKey] && userData.horarioFinal[turmaKey].disciplinas[discIndex]) {
+            userData.horarioFinal[turmaKey].disciplinas[discIndex].professorNome = nomeProfessorSelecionado;
+            disciplinaNome = userData.horarioFinal[turmaKey].disciplinas[discIndex].nome;
+            await addBotMessage(`Professor <b>${nomeProfessorSelecionado}</b> atribuído à disciplina de <b>${disciplinaNome}</b>.`);
+        } else {
+            await addBotMessage("Ocorreu um erro ao atribuir o professor.");
+        }
+    }
+
+
+    if (previousConversationState === 'EDITING_REL') {
+        previousConversationState = null;
+        await mostrarTabelaRelacionamentosFeitos();
+    } else {
+        currentDisciplinaRelacionamentoIndex++;
+        await proximaDisciplinaParaRelacionar();
+    }
+    break;
+}
+case 'REATRIBUIR_SELECIONAR_PROFESSOR_SOBRECARREGADO': {
+    clearOptions();
+    if (message === "CORRIGIR_DISPONIBILIDADE_GERAL") {
+        await addBotMessage("Ok, vamos para a tela de edição de disponibilidade.");
+        await mostrarTabelaProfessoresCadastrados();
+        break;
+    }
+
+
+    const profSelecionado = message;
+    tempData.professorParaReatribuir = profSelecionado;
+
+
+    let turmasDoProfessor = [];
+    Object.values(userData.horarioFinal).forEach(turma => {
+        turma.disciplinas.forEach(disc => {
+            if (disc.professorNome === profSelecionado) {
+                turmasDoProfessor.push({ 
+                    text: `${turma.displayText} - ${disc.nome}`, 
+                    value: `${turma.key}|${disc.nome}`
+                });
+            }
+        });
+    });
+
+
+    await addBotMessage(`Selecione as aulas de <b>${profSelecionado}</b> que você deseja mover para outro professor:`, 0, true);
+    showOptions(turmasDoProfessor, true);
+    conversationState = 'REATRIBUIR_SELECIONAR_AULAS_PARA_MOVER';
+    break;
+}
+
+
+case 'REATRIBUIR_SELECIONAR_AULAS_PARA_MOVER': {
+    clearOptions();
+    const aulasParaMover = Array.isArray(message) ? message : [message];
+    if (!aulasParaMover[0]) {
+        await addBotMessage("Nenhuma aula selecionada. Voltando...");
+        await validarCargaHorariaProfessores();
+        break;
+    }
+    
+    tempData.aulasParaMover = aulasParaMover;
+
+
+    const disciplinaExemplo = aulasParaMover[0].split('|')[1];
+    const professoresCompativeis = userData.professores.filter(
+        p => p.disciplinasMinistra.includes(disciplinaExemplo) && p.nome !== tempData.professorParaReatribuir
+    );
+    
+    await addBotMessage(`Para qual professor você deseja mover estas aulas?`, 0, true);
+    const options = professoresCompativeis.map(p => ({ text: p.nome, value: p.nome }));
+    options.push({ text: "Cadastrar Novo Professor", value: "CADASTRAR_NOVO_PARA_REATRIBUIR" });
+    showOptions(options);
+    conversationState = 'REATRIBUIR_FINALIZAR_TROCA';
+    break;
+}
+
+
+case 'REATRIBUIR_FINALIZAR_TROCA': {
+    clearOptions();
+     if(message === "CADASTRAR_NOVO_PARA_REATRIBUIR") {
+        await addBotMessage("Ok, vamos cadastrar um novo professor. Depois, você precisará reiniciar a validação.");
+        currentProfessorConfig = { nome: null, disciplinasMinistra: [], aulasSemanaisSala: 0, aulasSemanaisPlanejamento: 0, gradeDisponibilidade: {} };
+        await addBotMessage("Qual o nome do novo professor(a)?", 500, true);
+        conversationState = 'CADASTRO_PROFESSOR_NOME';
+        break;
+    }
+    
+    const novoProfessor = message;
+
+
+    tempData.aulasParaMover.forEach(item => {
+        const [turmaKey, discNome] = item.split('|');
+        const turma = userData.horarioFinal[turmaKey];
+        if (turma) {
+            const disc = turma.disciplinas.find(d => d.nome === discNome);
+            if (disc) {
+                disc.professorNome = novoProfessor;
+            }
+        }
+    });
+
+
+    await addBotMessage(`Aulas reatribuídas para <b>${novoProfessor}</b> com sucesso!`);
+    
+    await addBotMessage("Verificando novamente a carga horária de todos os professores...", 500);
+    await validarCargaHorariaProfessores();
+    break;
+}
+    case 'CONFERIR_RELACIONAMENTOS_FEITOS_ACAO':
+    clearOptions();
+    if (message === 'PROSSEGUIR_VALIDACAO_TABELA') {
+        await addBotMessage("Ok, vamos validar os dados antes de prosseguir para a tela de geração.");
+        await validarCargaHorariaProfessores();
+        
+    } else if (message === 'CORRIGIR_RELACIONAMENTO_TABELA') {
+        await addBotMessage("Qual turma você deseja editar o relacionamento de disciplinas?", 0, true);
+        const turmaOptions = Object.values(userData.horarioFinal).map(turma => ({
+            text: turma.displayText,
+            value: `EDIT_REL_TURMA_${turma.key}`
+        }));
+        turmaOptions.push({ text: "Voltar", value: "CANCELAR_EDICAO_REL" });
+        showOptions(turmaOptions);
+        conversationState = 'AWAITING_REL_EDIT_TURMA_SELECTION';
+    } else {
+        await addBotMessage("Opção inválida. Por favor, escolha uma das opções abaixo.");
+        await mostrarTabelaRelacionamentosFeitos();
+    }
+    break;
+case 'REATRIBUIR_CONFIRMAR_TURMAS': {
+    clearOptions();
+    const turmasSelecionadasKeys = Array.isArray(message) ? message : [message];
+    const novoProfessor = tempData.novoProfessorParaReatribuir;
+    const disciplina = tempData.disciplinaParaReatribuir;
+
+
+    if (turmasSelecionadasKeys.length > 0 && turmasSelecionadasKeys[0]) {
+        turmasSelecionadasKeys.forEach(turmaKey => {
+            const turma = userData.horarioFinal[turmaKey];
+            if (turma) {
+                const discIndex = turma.disciplinas.findIndex(d => d.nome === disciplina);
+                if (discIndex !== -1) {
+                    turma.disciplinas[discIndex].professorNome = novoProfessor;
+                }
+            }
+        });
+        await addBotMessage(`Turmas de <b>${disciplina}</b> atribuídas para <b>${novoProfessor}</b> com sucesso!`);
+    } else {
+        await addBotMessage("Nenhuma turma selecionada.");
+    }
+    
+    await addBotMessage("Verifique a nova atribuição na tabela abaixo.");
+    await mostrarTabelaRelacionamentosFeitos();
+    break;
+}
+case 'AWAITING_REL_EDIT_TURMA_SELECTION': {
+    clearOptions();
+    if (message === 'CANCELAR_EDICAO_REL') {
+        await mostrarTabelaRelacionamentosFeitos();
+        break;
+    }
+    
+    const turmaKey = message.replace('EDIT_REL_TURMA_', '');
+    currentTurmaConfig = userData.horarioFinal[turmaKey];
+
+
+    if (currentTurmaConfig && currentTurmaConfig.disciplinas.length > 0) {
+        await addBotMessage(`Qual disciplina da turma <b>${currentTurmaConfig.displayText}</b> você deseja alterar o professor?`, 0, true);
+        const discOptions = currentTurmaConfig.disciplinas.map((disc, index) => ({
+            text: `${disc.nome} (Atual: ${disc.professorNome || 'Nenhum'})`,
+            value: `EDIT_REL_DISC_${index}`
+        }));
+        discOptions.push({ text: "Voltar", value: "CANCELAR_EDICAO_REL" });
+        showOptions(discOptions);
+        conversationState = 'AWAITING_REL_EDIT_DISC_SELECTION';
+    } else {
+        await addBotMessage("Esta turma não possui disciplinas para editar. Voltando...");
+        await mostrarTabelaRelacionamentosFeitos();
+    }
+    break;
+}
+case 'AWAITING_REATRIBUICAO_CONFIRMATION': {
+    clearOptions();
+    const selects = document.querySelectorAll('.reatribuir-select');
+    let precisaCadastrarNovo = false;
+
+
+    selects.forEach(select => {
+        const novoProfessor = select.value;
+        const turmaKey = select.dataset.turmaKey;
+        const discIndex = parseInt(select.dataset.discIndex);
+
+
+        if (novoProfessor === "NOVO_PROFESSOR") {
+            precisaCadastrarNovo = true;
+        } else {
+            userData.horarioFinal[turmaKey].disciplinas[discIndex].professorNome = novoProfessor;
+        }
+    });
+
+
+    availabilityGridContainer.classList.add('hidden');
+    await addBotMessage("Reatribuições salvas!");
+
+
+    if (precisaCadastrarNovo) {
+        await addBotMessage("Vamos cadastrar o novo professor que você precisa.");
+        currentProfessorConfig = { nome: null, disciplinasMinistra: [], aulasSemanaisSala: 0, aulasSemanaisPlanejamento: 0, gradeDisponibilidade: {} };
+        await addBotMessage("Qual o nome do novo professor(a)?", 500, true);
+        conversationState = 'CADASTRO_PROFESSOR_NOME';
+    } else {
+        await addBotMessage("Verificando novamente a carga horária de todos os professores...", 500);
+        await validarCargaHorariaProfessores();
+    }
+    break;
+}
+
+
+case 'AWAITING_REL_EDIT_DISC_SELECTION': {
+    clearOptions();
+    if (message === 'CANCELAR_EDICAO_REL') {
+        await mostrarTabelaRelacionamentosFeitos();
+        break;
+    }
+
+
+    const discIndex = parseInt(message.replace('EDIT_REL_DISC_', ''));
+    const disciplinaSelecionada = currentTurmaConfig.disciplinas[discIndex]; 
+    
+    if (!disciplinaSelecionada) {
+        await addBotMessage("Erro: Não foi possível encontrar a disciplina selecionada.");
+        await mostrarTabelaRelacionamentosFeitos();
+        break;
+    }
+
+
+    const professoresCompativeis = userData.professores.filter(prof => 
+        prof.disciplinasMinistra.includes(disciplinaSelecionada.nome)
+    );
+
+
+    if (professoresCompativeis.length > 0) {
+        await addBotMessage(`Selecione o novo professor para <b>${disciplinaSelecionada.nome}</b> na turma <b>${currentTurmaConfig.displayText}</b>:`, 0, true);
+        const profOptions = professoresCompativeis.map(p => ({ text: p.nome, value: p.nome }));
+        profOptions.push({text: "Deixar sem professor", value: "PULAR_DISCIPLINA_REL"});
+        
+        currentDisciplinaParaConfigurar.disciplinaIndexParaRelacionamento = discIndex;
+        
+        showOptions(profOptions);
+        previousConversationState = 'EDITING_REL'; 
+        conversationState = 'RELACIONAMENTO_SELECIONAR_PROFESSOR';
+    } else {
+        await addBotMessage(`Nenhum professor cadastrado é compatível com a disciplina de ${disciplinaSelecionada.nome}.`);
+        await mostrarTabelaRelacionamentosFeitos();
+    }
+    break;
+}
+    case 'CONFIRM_SAVE_HORARIO':
+    clearOptions();
+    if (message === 'EXPORTAR_PDF') {
+        await exportarHorarioParaPDFGeral();
+        await addBotMessage("O que mais deseja fazer?", 500, true);
+        showOptions([
+            {text: "Exportar Dados para Arquivo (.json)", value: "EXPORTAR_JSON", highlight:"action"},
+            {text: "Salvar e Encerrar", value: "SALVAR_E_ENCERRAR", highlight:"save"},
+            {text: "Iniciar Novo Horário", value: "REFAZER_TUDO", highlight:"correct"}
+        ]);
+
+
+    } else if (message === 'EXPORTAR_JSON') {
+        await exportarDadosParaJSON();
+
+
+    } else if (message === 'SALVAR_E_ENCERRAR') {
+        if (salvarHorarioNoLocalStorage()) {
+            await addBotMessage("Sessão salva com sucesso! Você pode fechar a página e continuar depois.");
+        } else {
+            await addBotMessage("Ocorreu um erro ao tentar salvar a sessão.");
+        }
+        conversationState = 'END';
+        userInput.disabled = true;
+        userInput.placeholder = "Sessão encerrada. Recarregue a página para começar de novo.";
+
+
+    } else if (message === 'REFAZER_TUDO') {
+        await addBotMessage("Ok, vamos começar um novo horário do zero.");
+        resetarDadosParaNovoHorario();
+        localStorage.removeItem(BASE_STORAGE_KEY);
+        await handleUserInput();
+    }
+    break;
+case 'AWAITING_DISCIPLINA_SELECTION_LISTA': {
+    if (message === 'ADD_DISC_NOVA_DURANTE_SELECAO') {
+        clearOptions();
+        await addBotMessage("Qual o nome da nova disciplina que você deseja cadastrar?", 0, true);
+        conversationState = 'AWAITING_NOME_NOVA_DISCIPLINA_TURMA_RETORNA';
+    
+    } else if (Array.isArray(message)) {
+        clearOptions();
+        const disciplinasSelecionadas = message.filter(d => d); 
+        
+        if (disciplinasSelecionadas.length > 0) {
+            disciplinasParaConfigurarQtdAulas = disciplinasSelecionadas;
+            disciplinaAtualParaConfigurarQtdIndex = 0;
+            await proximaDisciplinaParaConfigurarQtdAulas();
+        } else {
+            await addBotMessage("Nenhuma disciplina selecionada.");
+            await mostrarMenuDisciplinasDaTurmaAtual();
+        }
+    } else {
+        await addBotMessage("Ação inesperada. Retornando ao menu.");
+        await mostrarMenuDisciplinasDaTurmaAtual();
+    }
+    break;
+}
+
+
+              case 'AWAITING_QTD_AULAS_DISCIPLINA_TURMA':
+    const qtdAulas = parseInt(message);
+    if (isNaN(qtdAulas) || qtdAulas < 1) {
+        await addBotMessage("Por favor, informe um número válido de aulas.", 0, true);
+    } else {
+        const nomeDisciplina = currentDisciplinaParaConfigurar.nome;
+        
+        currentTurmaConfig.disciplinas.push({ nome: nomeDisciplina, qtdAulasSemanais: qtdAulas });
+        
+        await addBotMessage(`'${nomeDisciplina}' adicionada com ${qtdAulas} aulas/semana.`);
+
+
+        disciplinaAtualParaConfigurarQtdIndex++;
+        await proximaDisciplinaParaConfigurarQtdAulas();
+    }
+    break;
+case 'ADD_DISC_NOVA_DURANTE_SELECAO': {
+    clearOptions();
+    await addBotMessage("Qual o nome da nova disciplina que você deseja cadastrar e adicionar à lista geral? (Pode adicionar várias, separadas por vírgula)", 0, true);
+    conversationState = 'AWAITING_NOME_NOVA_DISCIPLINA_TURMA_RETORNA';
+    break;
+}
+case 'AWAITING_NOME_NOVA_DISCIPLINA_TURMA': {
+    const nomesDisciplinas = message.split(',').map(name => name.trim()).filter(name => name);
+
+
+    if (nomesDisciplinas.length > 0) {
+        let disciplinasAdicionadas = [];
+        nomesDisciplinas.forEach(nome => {
+            const disciplinaCapitalizada = nome.charAt(0).toUpperCase() + nome.slice(1).toLowerCase();
+            if (!disciplinasEnsinoFundamental.includes(disciplinaCapitalizada)) { disciplinasEnsinoFundamental.push(disciplinaCapitalizada); }
+            if (!disciplinasEnsinoMedio.includes(disciplinaCapitalizada)) { disciplinasEnsinoMedio.push(disciplinaCapitalizada); }
+            disciplinasAdicionadas.push(disciplinaCapitalizada);
+        });
+
+
+        disciplinasParaConfigurarQtdAulas = disciplinasAdicionadas;
+        disciplinaAtualParaConfigurarQtdIndex = 0;
+        await addBotMessage(`<b>${disciplinasAdicionadas.join(', ')}</b> cadastrada(s).`);
+        await proximaDisciplinaParaConfigurarQtdAulas();
+    } else {
+        await addBotMessage("Nome inválido. Por favor, tente novamente.");
+        await mostrarMenuDisciplinasDaTurmaAtual();
+    }
+    break;
+}
+case 'AWAITING_NOME_NOVA_DISCIPLINA_TURMA_RETORNA': {
+    const nomesDisciplinas = message.split(',').map(name => name.trim()).filter(name => name);
+
+
+    if (nomesDisciplinas.length > 0) {
+        nomesDisciplinas.forEach(nome => {
+            const disciplinaCapitalizada = nome.charAt(0).toUpperCase() + nome.slice(1).toLowerCase();
+            if (!disciplinasEnsinoFundamental.includes(disciplinaCapitalizada)) { 
+                disciplinasEnsinoFundamental.push(disciplinaCapitalizada); 
+            }
+            if (!disciplinasEnsinoMedio.includes(disciplinaCapitalizada)) { 
+                disciplinasEnsinoMedio.push(disciplinaCapitalizada); 
+            }
+        });
+        
+        await addBotMessage(`<b>${nomesDisciplinas.join(', ')}</b> adicionada(s) à lista geral.`);
+        await addBotMessage("Retornando à tela de seleção...", 500);
+
+
+        const lista = (currentTurmaConfig.type === 'MEDIO') ? disciplinasEnsinoMedio : disciplinasEnsinoFundamental;
+        const options = lista.map(d => ({ text: d, value: d }));
+        const acoesExtras = [{ text: "Cadastrar Nova Disciplina (não está na lista)", value: "ADD_DISC_NOVA_DURANTE_SELECAO" }];
+        
+        showOptions(options, true, acoesExtras); 
+        
+        conversationState = 'AWAITING_DISCIPLINA_SELECTION_LISTA';
+
+
+    } else {
+        await addBotMessage("Nome inválido. Retornando...");
+        await handleUserInput('ADD_DISC_LISTA');
+    }
+    break;
+}
+case 'PROMPT_REMOVE_DISC': {
+    const indexToRemove = parseInt(message.split('_').pop());
+    const disciplinaParaRemover = currentTurmaConfig.disciplinas[indexToRemove];
+
+
+    if (disciplinaParaRemover) {
+        await addBotMessage(`Tem certeza que deseja remover a disciplina <b>${disciplinaParaRemover.nome}</b> da turma?`, 0, true);
+        showOptions([
+            { text: "Sim, remover", value: `CONFIRM_REMOVE_DISC_${indexToRemove}`, highlight: "correct" },
+            { text: "Não, cancelar", value: "CANCEL_REMOVE_DISC" }
+        ]);
+        conversationState = 'CONFIRM_REMOVE_DISC';
+    }
+    break;
+}
+
+
+case 'CONFIRM_REMOVE_DISC': {
+    if (message.startsWith('CONFIRM_REMOVE_DISC_')) {
+        const indexToRemove = parseInt(message.split('_').pop());
+        const disciplinaRemovida = currentTurmaConfig.disciplinas.splice(indexToRemove, 1);
+        
+        await addBotMessage(`Disciplina <b>${disciplinaRemovida[0].nome}</b> removida com sucesso.`);
+    } else {
+        await addBotMessage("Ação cancelada.");
+    }
+    await mostrarMenuDisciplinasDaTurmaAtual();
+    break;
+}
+
+
+                case 'AWAITING_FINAL_CONFIG_CONFIRMATION':
+                    if (message === "CONFIRMAR_CONFIGS_GERAR") {
+                        userData.configAgrupamento = document.getElementById('agrupamentoSelect').value;
+                        userData.parametrosProcessamento = {};
+
+
+                        listaParametrosProcessamento.forEach(param => {
+                            const checkbox = document.getElementById(`param-${param.id}`);
+                            if (checkbox && checkbox.checked) {
+                                userData.parametrosProcessamento[param.id] = { habilitado: true, valor: null };
+                                if (param.precisaValor) {
+                                    const valorInput = document.getElementById(`valor-${param.id}`);
+                                    if (valorInput && valorInput.value) {
+                                        const valor = parseInt(valorInput.value, 10);
+                                        userData.parametrosProcessamento[param.id].valor = !isNaN(valor) ? valor : valorInput.value;
+                                    }
+                                }
+                            } else {
+                                userData.parametrosProcessamento[param.id] = { habilitado: false, valor: null };
+                            }
+                        });
+
+
+                        availabilityGridContainer.innerHTML = '';
+                        availabilityGridContainer.classList.add('hidden');
+                        await addBotMessage("Configurações salvas. Iniciando a geração do horário, isso pode levar alguns instantes...");
+                        
+                        await iniciarGeracaoComScheduleGenerator();
+                    }
+                    break;
+                
+case 'AWAITING_OPTIMIZATION_ACTION': {
+    clearOptions();
+    if (message === 'OTIMIZAR_HORARIO') {
+        await addBotMessage("A otimização avançada ocorre durante a geração. Para tentar novamente com outros parâmetros, corrija os problemas apontados e gere novamente.");
+        await handleUserInput("corrigir");
+
+
+    } else if (message === 'OTIMIZAR_PROFESSORES') {
+        await addBotMessage("Ok, vamos para a tela de Professores para você ajustar as disponibilidades.");
+        await mostrarTabelaProfessoresCadastrados();
+        
+    } else if (message === 'OTIMIZAR_HORARIOS_FIXOS') {
+        await addBotMessage("Ok, vamos para a tela de Disciplinas para ajustar os horários fixos.");
+        await iniciarCadastroDisciplinas(); 
+
+
+    } else if (message === 'EXPORTAR_FINAL') {
+        await addBotMessage("Entendido. O que deseja exportar?", 0, true);
+        showOptions([
+            {text: "Exportar Horário para PDF", value: "EXPORTAR_PDF", highlight:"action"},
+            {text: "Exportar Dados para Arquivo (.json)", value: "EXPORTAR_JSON", highlight:"action"},
+        ]);
+        conversationState = 'CONFIRM_SAVE_HORARIO';
+    }
+    break;
+}
+                default:
+                    await addBotMessage("Desculpe, não entendi ou a funcionalidade ainda não foi implementada. Estado: " + conversationState);
+            }
+
+
+            const hasConfirmButton = Array.from(optionsContainer.children).some(
+                child => child.tagName === 'BUTTON' && child.textContent.includes("Confirmar Seleção")
+            );
+            const hasOtherOptionButtons = Array.from(optionsContainer.children).some(
+                child => child.tagName === 'BUTTON' && !child.textContent.includes("Confirmar Seleção")
+            );
+
+
+            if (conversationState === 'END' || (conversationState === 'START' && !userInput.value && !document.querySelector('#chat-messages').hasChildNodes())) { 
+                userInput.disabled = (conversationState === 'END'); 
+                userInput.placeholder = (conversationState === 'END') ? "Sessão encerrada." : "Digite sua mensagem...";
+            } else if (hasConfirmButton) { 
+                userInput.disabled = true; 
+                userInput.placeholder = "Confirme a seleção acima";
+            } else if (hasOtherOptionButtons) { 
+                userInput.disabled = true;
+                userInput.placeholder = "Selecione uma opção acima";
+            } else { 
+                userInput.disabled = false;
+                userInput.placeholder = "Digite sua mensagem...";
+                if(userInput.disabled === false && availabilityGridContainer.classList.contains('hidden')) userInput.focus(); 
+            }
+        }
+
+
+        sendButton.addEventListener('click', () => {
+    const message = userInput.value;
+    if (!message.trim()) return;
+    addUserMessage(message);
+    handleUserInput(message);
+});
+
+
+userInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !userInput.disabled) {
+        const message = userInput.value;
+        if (!message.trim()) return;
+        addUserMessage(message);
+        handleUserInput(message);
+    }
+});
+ 
+closeHorarioModalBtn.onclick = fecharHorarioModalButton.onclick = async function() {
+    horarioModal.style.display = "none";
+    await addBotMessage("O que deseja fazer com o horário gerado?", 0, true);
+    showOptions([
+        {text: "Exportar Horário para PDF", value: "EXPORTAR_PDF", highlight:"action"},
+        {text: "Exportar Dados para Arquivo (.json)", value: "EXPORTAR_JSON", highlight:"action"},
+        {text: "Salvar e Encerrar", value: "SALVAR_E_ENCERRAR", highlight:"save"},
+        {text: "Iniciar Novo Horário", value: "REFAZER_TUDO", highlight:"correct"}
+    ]);
+    conversationState = 'CONFIRM_SAVE_HORARIO';
+};
+
+
+resetCompletoParaLogout(); 
+handleUserInput();
+    </script>
+</body>
+</html>
